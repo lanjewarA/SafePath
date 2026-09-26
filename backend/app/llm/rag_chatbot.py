@@ -2,7 +2,8 @@ import os
 import sys
 import json
 import chromadb
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -83,19 +84,35 @@ def retrieve_safety_context(query: str, n_results: int = 2) -> List[str]:
         print(f"[RAG Copilot] Vector search error: {e}")
         return [d["text"] for d in SAFETY_KNOWLEDGE_DOCS[:2]]
 
-def answer_copilot_query(user_query: str) -> Dict[str, Any]:
-    """Answer route safety questions using ChromaDB retrieval + Gemini generation."""
+def answer_copilot_query(user_query: str, route_context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Answer route safety questions using structured route data + ChromaDB retrieval + Gemini generation."""
     context_docs = retrieve_safety_context(user_query, n_results=2)
     retrieved_context_str = "\n---\n".join(context_docs)
 
-    prompt = f"""You are SafePath AI's Safety Copilot. Use the retrieved safety database context below to answer the user's question clearly and concisely.
+    route_context_str = ""
+    if route_context and isinstance(route_context, dict) and "routes" in route_context:
+        routes_summary = []
+        for r in route_context.get("routes", []):
+            routes_summary.append(
+                f"Route '{r.get('name')}' (ID: {r.get('route_id')}, Recommended: {r.get('is_recommended', False)}):\n"
+                f"  - Total Distance: {r.get('total_distance_km')} km ({r.get('estimated_walk_minutes')} min walk)\n"
+                f"  - Composite Safety Score: {r.get('composite_safety_score')}/100\n"
+                f"  - Safety Exposure (Length-Weighted Risk): {r.get('safety_exposure')}\n"
+                f"  - Max Segment Risk: {r.get('max_segment_risk')}\n"
+                f"  - High-Risk Distance Exposure: {r.get('high_risk_exposure_pct')}%\n"
+                f"  - Detour: +{r.get('detour_percentage')}%\n"
+                f"  - Rationale: {r.get('rationale')}\n"
+            )
+        route_context_str = "CURRENT CALCULATED ROUTE DATA:\n" + "\n".join(routes_summary) + "\n---\n"
 
-Retrieved Safety Knowledge Base Context:
+    prompt = f"""You are SafePath AI's Safety Copilot. Use ONLY the supplied application data below to answer the user's question accurately. Do NOT invent safety facts.
+
+{route_context_str}Retrieved Safety Knowledge Base Context:
 {retrieved_context_str}
 
 User Question: "{user_query}"
 
-Provide a helpful, grounded answer with safe walking advice and specific detour recommendations if applicable:"""
+Provide a concise, grounded answer explaining route safety scores, lighting conditions, or detour trade-offs:"""
 
     if GEMINI_API_KEY:
         try:
@@ -115,12 +132,19 @@ Provide a helpful, grounded answer with safe walking advice and specific detour 
         except Exception as e:
             print(f"[RAG Copilot] Gemini API call error: {e}. Falling back to grounded retrieval response.")
 
-    # Fallback grounded response using retrieved vector context
-    fallback_answer = (
-        f"Based on SafePath AI's safety database for West India:\n\n"
-        f"{retrieved_context_str}\n\n"
-        f"Recommendation: Choose routes highlighted green (Safety Score >= 75) on the map and enable SafeWalk live tracking."
-    )
+    # Fallback grounded response using route metrics or vector context
+    if route_context_str:
+        fallback_answer = (
+            f"Based on current calculated route data for your journey:\n\n"
+            f"{route_context_str}\n"
+            f"Recommendation: Choose the Recommended Safe Route (Safety Score >= 75) which minimizes high-risk exposure within an acceptable detour."
+        )
+    else:
+        fallback_answer = (
+            f"Based on SafePath AI's safety database for West India:\n\n"
+            f"{retrieved_context_str}\n\n"
+            f"Recommendation: Choose routes highlighted green (Safety Score >= 75) on the map and enable SafeWalk live tracking."
+        )
 
     return {
         "user_query": user_query,
@@ -128,6 +152,7 @@ Provide a helpful, grounded answer with safe walking advice and specific detour 
         "retrieved_context": context_docs,
         "engine": "ChromaDB Vector Store (Fallback Grounded Engine)"
     }
+
 
 if __name__ == "__main__":
     test_q = "Why is Senapati Bapat Marg flagged high risk at 10 PM?"

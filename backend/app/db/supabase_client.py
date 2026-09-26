@@ -72,6 +72,19 @@ def insert_safety_report(report_data: Dict[str, Any]) -> Optional[Dict[str, Any]
         print(f"[Supabase] Failed to insert safety report: {e}")
         return None
 
+def fetch_safety_reports() -> List[Dict[str, Any]]:
+    """Fetch safety reports from Supabase database."""
+    client = get_supabase_client()
+    if client is None:
+        return []
+    
+    try:
+        response = client.table("safety_reports").select("*").execute()
+        return response.data if response.data else []
+    except Exception as e:
+        print(f"[Supabase] Failed to fetch safety reports: {e}")
+        return []
+
 def update_segment_safety_score(segment_id: str, new_safety_score: float) -> bool:
     """Update a segment's calculated safety score after Gemini LLM verification."""
     client = get_supabase_client()
@@ -84,4 +97,5 @@ def update_segment_safety_score(segment_id: str, new_safety_score: float) -> boo
     except Exception as e:
         print(f"[Supabase] Failed to update segment safety score: {e}")
         return False
+
 
