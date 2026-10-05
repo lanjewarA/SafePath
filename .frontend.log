@@ -1,0 +1,34 @@
+
+> safepath-ai-frontend@0.1.0 dev
+> next dev
+
+  ▲ Next.js 14.2.35
+  - Local:        http://localhost:3000
+
+ ✓ Starting...
+ ✓ Ready in 18.5s
+ ○ Compiling / ...
+(node:27012) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ Compiled / in 26.9s (625 modules)
+ GET / 200 in 27828ms
+ GET / 200 in 179ms
+ ○ Compiling /report ...
+ ✓ Compiled /report in 1121ms (637 modules)
+ ○ Compiling /safewalk ...
+ ✓ Compiled /safewalk in 543ms (630 modules)
+ ○ Compiling /chat ...
+ ✓ Compiled /chat in 578ms (640 modules)
+ GET / 200 in 468ms
+ ✓ Compiled in 1820ms (669 modules)
+ ✓ Compiled in 553ms (669 modules)
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 654ms (653 modules)
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 2.7s (880 modules)
+ GET / 404 in 3872ms
+ GET / 404 in 41ms
+ ✓ Compiled in 460ms (899 modules)
+ ✓ Compiled in 327ms (899 modules)
+ ✓ Compiled in 374ms (896 modules)
+ ✓ Compiled in 327ms (896 modules)

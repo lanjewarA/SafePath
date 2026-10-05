@@ -5,8 +5,11 @@
 CREATE EXTENSION IF NOT EXISTS postgis;
 
 -- 1. Street Segments Table
+-- NOTE: id is TEXT (e.g. 'seg-mh-1001') because the backend seed dataset and
+-- safety_reports.segment_id both use these string IDs. If you prefer UUIDs,
+-- change this AND safety_reports.segment_id AND backend/data/generate_dataset.py.
 CREATE TABLE IF NOT EXISTS public.segments (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id TEXT PRIMARY KEY,
     osm_id BIGINT NOT NULL,
     name TEXT NOT NULL DEFAULT 'Unnamed Road',
     start_lat DOUBLE PRECISION NOT NULL,
@@ -31,7 +34,7 @@ CREATE INDEX IF NOT EXISTS segments_osm_id_idx ON public.segments (osm_id);
 CREATE TABLE IF NOT EXISTS public.safety_reports (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id TEXT NOT NULL DEFAULT 'anonymous',
-    segment_id UUID REFERENCES public.segments(id) ON DELETE SET NULL,
+    segment_id TEXT REFERENCES public.segments(id) ON DELETE SET NULL,
     latitude DOUBLE PRECISION NOT NULL,
     longitude DOUBLE PRECISION NOT NULL,
     report_type TEXT NOT NULL,                  -- 'poor_lighting', 'harassment_risk', 'cctv_broken', 'isolated_area'
@@ -63,7 +66,7 @@ CREATE TABLE IF NOT EXISTS public.routes (
     dest_lon DOUBLE PRECISION NOT NULL,
     distance_meters FLOAT NOT NULL,
     composite_safety_score FLOAT NOT NULL,
-    segment_ids UUID[] NOT NULL,
+    segment_ids TEXT[] NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 

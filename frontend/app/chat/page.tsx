@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MessageSquare, Send, Bot, User, Loader2, Sparkles } from "lucide-react";
+import { Send, Bot, User, Loader2 } from "lucide-react";
 
 interface Message {
   sender: "user" | "copilot";
@@ -64,10 +64,10 @@ export default function ChatPage() {
 
   return (
     <div className="max-w-4xl mx-auto w-full p-6 flex flex-col flex-1 gap-4 h-[calc(100vh-90px)]">
-      <div className="bg-slate-800 p-4 rounded-lg border border-slate-700 shadow-xl flex items-center justify-between">
+      <div className="glass-panel p-4 rounded-xl flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-            <Bot className="w-6 h-6 text-purple-400" />
+            <Bot className="w-6 h-6 text-pink-400" />
             Safety Copilot (RAG Assistant)
           </h1>
           <p className="text-xs text-slate-400 mt-0.5">
@@ -81,47 +81,47 @@ export default function ChatPage() {
         <span className="text-[10px] text-slate-400 font-semibold w-full">Quick Questions:</span>
         <button
           onClick={() => { setQuery("Why is Route B recommended over Route A?"); }}
-          className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 px-2.5 py-1 rounded"
+          className="glass-inset hover:bg-white/10 border border-white/10 text-slate-300 px-2.5 py-1 rounded-md"
         >
           Why is Route B recommended?
         </button>
         <button
           onClick={() => { setQuery("Why is Senapati Bapat Marg flagged high risk at 10 PM?"); }}
-          className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 px-2.5 py-1 rounded"
+          className="glass-inset hover:bg-white/10 border border-white/10 text-slate-300 px-2.5 py-1 rounded-md"
         >
           Senapati Bapat Marg risk?
         </button>
         <button
           onClick={() => { setQuery("Which route has the best CCTV density and lighting?"); }}
-          className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 px-2.5 py-1 rounded"
+          className="glass-inset hover:bg-white/10 border border-white/10 text-slate-300 px-2.5 py-1 rounded-md"
         >
           Best lighting & CCTV route?
         </button>
       </div>
 
       {/* Chat Messages Window */}
-      <div className="flex-1 bg-slate-800/60 rounded-lg border border-slate-700 p-4 flex flex-col gap-4 overflow-y-auto min-h-[350px]">
+      <div className="flex-1 glass-panel rounded-xl p-4 flex flex-col gap-4 overflow-y-auto min-h-[350px]">
         {messages.map((msg, idx) => (
           <div
             key={idx}
             className={`flex flex-col max-w-xl text-sm ${
               msg.sender === "user"
-                ? "self-end bg-purple-900/70 border border-purple-700 text-purple-100 rounded-2xl rounded-tr-none p-3.5"
-                : "self-start bg-slate-900 border border-slate-700 text-slate-200 rounded-2xl rounded-tl-none p-4 shadow-lg"
+                ? "self-end bg-pink-950/70 border border-pink-500/40 text-pink-100 rounded-2xl rounded-tr-none p-3.5"
+                : "self-start glass-panel-strong text-slate-200 rounded-2xl rounded-tl-none p-4"
             }`}
           >
             <div className="flex items-center gap-1.5 font-semibold text-xs mb-1.5">
               {msg.sender === "user" ? (
                 <>
-                  <User className="w-3.5 h-3.5 text-purple-300" />
-                  <span className="text-purple-300">You</span>
+                  <User className="w-3.5 h-3.5 text-pink-400" />
+                  <span className="text-pink-300">You</span>
                 </>
               ) : (
                 <>
-                  <Bot className="w-4 h-4 text-purple-400" />
-                  <span className="text-purple-400">Safety Copilot</span>
+                  <Bot className="w-4 h-4 text-teal-400" />
+                  <span className="text-teal-300">Safety Copilot</span>
                   {msg.engine && (
-                    <span className="ml-auto text-[10px] font-mono text-slate-400 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">
+                    <span className="ml-auto text-[10px] font-mono text-slate-400 glass-inset px-2 py-0.5 rounded">
                       {msg.engine}
                     </span>
                   )}
@@ -136,8 +136,8 @@ export default function ChatPage() {
         ))}
 
         {loading && (
-          <div className="self-start bg-slate-900 border border-slate-700 text-slate-400 rounded-2xl rounded-tl-none p-3 flex items-center gap-2 text-xs">
-            <Loader2 className="w-4 h-4 animate-spin text-purple-400" />
+          <div className="self-start glass-panel-strong text-slate-400 rounded-2xl rounded-tl-none p-3 flex items-center gap-2 text-xs">
+            <Loader2 className="w-4 h-4 animate-spin text-pink-400" />
             <span>Retrieving safety database context & generating answer...</span>
           </div>
         )}
@@ -150,12 +150,12 @@ export default function ChatPage() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Ask a question about route safety, lighting, or GNN spatial risk..."
-          className="flex-1 bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm text-slate-100 focus:outline-none focus:border-purple-500"
+          className="flex-1 glass-panel rounded-lg p-3 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-pink-400 focus:ring-2 focus:ring-pink-400/20"
         />
         <button
           type="submit"
           disabled={loading || !query.trim()}
-          className="bg-purple-600 hover:bg-purple-500 disabled:bg-purple-900 text-white font-medium p-3 rounded-lg flex items-center justify-center transition-colors shadow-lg"
+          className="bg-gradient-to-r from-teal-500 to-pink-500 hover:from-teal-400 hover:to-pink-400 disabled:from-slate-600 disabled:to-slate-600 text-slate-950 font-semibold p-3 rounded-lg flex items-center justify-center transition-colors shadow-lg"
         >
           <Send className="w-4 h-4" />
         </button>
@@ -163,5 +163,3 @@ export default function ChatPage() {
     </div>
   );
 }
-
-

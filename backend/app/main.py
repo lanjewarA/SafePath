@@ -36,9 +36,20 @@ def read_root():
 
 @app.get("/api/health")
 def health_check():
+    from app.db.supabase_client import get_supabase_client
+
+    database = "unconnected"
+    client = get_supabase_client()
+    if client is not None:
+        try:
+            client.table("segments").select("id").limit(1).execute()
+            database = "connected"
+        except Exception as e:
+            database = f"error: {e}"
+
     return {
         "status": "healthy",
-        "database": "unconnected",  # Will update when Supabase credentials are configured
+        "database": database,
         "version": "0.1.0"
     }
 

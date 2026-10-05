@@ -1,0 +1,23 @@
+
+> safepath-ai-frontend@0.1.0 dev
+> next dev
+
+  ▲ Next.js 14.2.35
+  - Local:        http://localhost:3000
+
+ ✓ Starting...
+ ✓ Ready in 17.5s
+ ○ Compiling / ...
+ ✓ Compiled / in 3.3s (620 modules)
+ GET / 200 in 4215ms
+ ○ Compiling /safewalk ...
+ ✓ Compiled /safewalk in 1024ms (644 modules)
+ GET /safewalk 200 in 1472ms
+ ○ Compiling /chat ...
+ ✓ Compiled /chat in 1039ms (658 modules)
+ GET /chat 200 in 1187ms
+ ○ Compiling /report ...
+ ✓ Compiled /report in 559ms (666 modules)
+ GET /report 200 in 710ms
+ GET / 200 in 195ms
+[?25h

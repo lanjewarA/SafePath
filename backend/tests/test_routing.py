@@ -54,3 +54,17 @@ def test_calculate_routes_api_endpoint():
     assert "routes" in data
     assert len(data["routes"]) == 3
 
+def test_calculate_routes_api_with_coordinates():
+    payload = {
+        "origin_name": "",
+        "origin_lat": 19.0178,
+        "origin_lon": 72.8478,
+        "destination_name": "",
+        "dest_lat": 19.0020,
+        "dest_lon": 72.8280,
+    }
+
+    response = client.post("/api/routes/calculate", json=payload)
+    assert response.status_code == 200
+    assert response.json()["routes_found"] == 3
+

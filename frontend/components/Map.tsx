@@ -95,14 +95,14 @@ L.Marker.prototype.options.icon = defaultIcon;
 
 const startMarkerIcon = L.divIcon({
   className: "custom-start-marker",
-  html: `<div style="background-color: #10b981; width: 26px; height: 26px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 14px rgba(16,185,129,0.95); display:flex; align-items:center; justify-content:center; color:white; font-size:12px; font-weight:bold;">A</div>`,
+  html: `<div style="background-color: #2dd4bf; width: 26px; height: 26px; border-radius: 50%; border: 3px solid #0c1a17; box-shadow: 0 0 14px rgba(45,212,191,0.8); display:flex; align-items:center; justify-content:center; color:#0c1a17; font-size:12px; font-weight:bold;">A</div>`,
   iconSize: [26, 26],
   iconAnchor: [13, 13],
 });
 
 const endMarkerIcon = L.divIcon({
   className: "custom-end-marker",
-  html: `<div style="background-color: #ef4444; width: 26px; height: 26px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 14px rgba(239,68,68,0.95); display:flex; align-items:center; justify-content:center; color:white; font-size:12px; font-weight:bold;">B</div>`,
+  html: `<div style="background-color: #ec4899; width: 26px; height: 26px; border-radius: 50%; border: 3px solid #0c1a17; box-shadow: 0 0 14px rgba(236,72,153,0.8); display:flex; align-items:center; justify-content:center; color:#0c1a17; font-size:12px; font-weight:bold;">B</div>`,
   iconSize: [26, 26],
   iconAnchor: [13, 13],
 });
@@ -131,6 +131,7 @@ export default function MapComponent({
   showHeatmap = true,
 }: MapProps) {
   const [heatmapActive, setHeatmapActive] = useState<boolean>(showHeatmap);
+  const [mapLayer, setMapLayer] = useState<"streets" | "satellite">("streets");
   const selectedRoute = routes.find((r) => r.route_id === selectedRouteId) || routes[0];
   const activeCoordinates = selectedRoute?.coordinates || [];
 
@@ -143,6 +144,11 @@ export default function MapComponent({
 
   const startCoord = snappedOrigin || (activeCoordinates.length > 0 ? activeCoordinates[0] : null);
   const endCoord = snappedDest || (activeCoordinates.length > 0 ? activeCoordinates[activeCoordinates.length - 1] : null);
+
+  const openStreetView = (lat: number, lon: number) => {
+    const url = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lon}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
 
   const getReportColor = (type: string) => {
     switch (type) {
@@ -161,17 +167,24 @@ export default function MapComponent({
 
 
   return (
-    <div className="w-full h-full min-h-[500px] rounded-lg overflow-hidden border border-slate-700 shadow-2xl relative z-10 flex flex-col">
+    <div className="w-full h-full min-h-[500px] rounded-xl overflow-hidden border border-white/10 shadow-xl relative z-10 flex flex-col bg-slate-900">
       <MapContainer
         center={startCoord || MUMBAI_CENTER}
         zoom={12}
         scrollWheelZoom={true}
         className="w-full h-full min-h-[500px]"
       >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
+        {mapLayer === "streets" ? (
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+        ) : (
+          <TileLayer
+            attribution='Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+            url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+          />
+        )}
 
         {bounds && <MapController bounds={bounds} />}
 
@@ -309,6 +322,15 @@ export default function MapComponent({
                           🚨 Active CCTV proximity alert
                         </div>
                       )}
+
+                      {/* Street View Quick Link for Segment */}
+                      <button
+                        type="button"
+                        onClick={() => openStreetView(midLat, midLon)}
+                        className="mt-2 w-full bg-slate-900 hover:bg-slate-800 text-teal-300 border border-teal-500/40 text-[11px] font-semibold py-1 px-2 rounded flex items-center justify-center gap-1.5 transition-colors shadow-sm"
+                      >
+                        <span>📷 Open 360° Street View</span>
+                      </button>
                     </div>
                   </Popup>
                 </Polyline>
@@ -353,7 +375,7 @@ export default function MapComponent({
                         <span className="font-bold text-xs flex items-center gap-1 uppercase tracking-wider" style={{ color: color }}>
                           🔥 {hp.report_type.replace(/_/g, " ")}
                         </span>
-                        <span className="bg-slate-900 text-slate-100 text-[10px] px-1.5 py-0.5 rounded font-mono">
+                        <span className="bg-teal-950/90 text-teal-300 border border-teal-500/40 text-[10px] px-1.5 py-0.5 rounded font-mono">
                           Intensity {intensityPct}%
                         </span>
                       </div>
@@ -369,6 +391,13 @@ export default function MapComponent({
                           {hp.source === "supabase" ? "⚡ Supabase DB" : hp.source === "community_memory" ? "👥 Community Report" : "⚠️ Verified Hazard"}
                         </span>
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => openStreetView(hp.latitude, hp.longitude)}
+                        className="mt-2 w-full bg-slate-900 hover:bg-slate-800 text-pink-300 border border-pink-500/40 text-[11px] font-semibold py-1 px-2 rounded flex items-center justify-center gap-1.5 transition-colors"
+                      >
+                        <span>📷 View Hazard in 360° Street View</span>
+                      </button>
                     </div>
                   </Popup>
                 </CircleMarker>
@@ -385,6 +414,13 @@ export default function MapComponent({
                 <span>{originName || "Origin Location"}</span>
                 <br />
                 <span className="font-mono text-[10px] text-slate-500">[{startCoord[0].toFixed(4)}, {startCoord[1].toFixed(4)}]</span>
+                <button
+                  type="button"
+                  onClick={() => openStreetView(startCoord[0], startCoord[1])}
+                  className="mt-2 w-full bg-slate-900 hover:bg-slate-800 text-teal-300 border border-teal-500/40 text-[11px] font-semibold py-1 px-2 rounded flex items-center justify-center gap-1.5 transition-colors"
+                >
+                  <span>📷 Street View at Origin</span>
+                </button>
               </div>
             </Popup>
           </Marker>
@@ -399,25 +435,73 @@ export default function MapComponent({
                 <span>{destName || "Destination Location"}</span>
                 <br />
                 <span className="font-mono text-[10px] text-slate-500">[{endCoord[0].toFixed(4)}, {endCoord[1].toFixed(4)}]</span>
+                <button
+                  type="button"
+                  onClick={() => openStreetView(endCoord[0], endCoord[1])}
+                  className="mt-2 w-full bg-slate-900 hover:bg-slate-800 text-pink-300 border border-pink-500/40 text-[11px] font-semibold py-1 px-2 rounded flex items-center justify-center gap-1.5 transition-colors"
+                >
+                  <span>📷 Street View at Destination</span>
+                </button>
               </div>
             </Popup>
           </Marker>
         )}
       </MapContainer>
 
-      {/* Heatmap Toggle Badge Control Overlay */}
-      <div className="absolute top-3 right-3 z-[1000] bg-slate-900/90 backdrop-blur-md border border-slate-700 p-2 rounded-lg shadow-xl flex items-center gap-2">
+      {/* Top Map Control Overlay: Layer Switcher, Street View, and Heat Points Toggle */}
+      <div className="absolute top-3 right-3 z-[1000] glass-panel-strong p-1.5 rounded-xl flex items-center gap-2 shadow-2xl border border-white/20">
+        {/* Layer Switcher */}
+        <div className="flex items-center bg-slate-950/80 p-0.5 rounded-lg border border-white/10 text-xs">
+          <button
+            type="button"
+            onClick={() => setMapLayer("streets")}
+            className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
+              mapLayer === "streets"
+                ? "bg-teal-500 text-slate-950 shadow-sm"
+                : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            🗺️ Streets
+          </button>
+          <button
+            type="button"
+            onClick={() => setMapLayer("satellite")}
+            className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
+              mapLayer === "satellite"
+                ? "bg-teal-500 text-slate-950 shadow-sm"
+                : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            🛰️ Satellite
+          </button>
+        </div>
+
+        {/* Global Street View Trigger Button */}
+        <button
+          type="button"
+          onClick={() => {
+            const targetLat = startCoord ? startCoord[0] : MUMBAI_CENTER[0];
+            const targetLon = startCoord ? startCoord[1] : MUMBAI_CENTER[1];
+            openStreetView(targetLat, targetLon);
+          }}
+          title="Open Google Street View (360° Panorama) for active location"
+          className="text-xs px-2.5 py-1.5 rounded-lg font-semibold bg-slate-900/90 hover:bg-slate-800 text-teal-300 border border-teal-500/40 flex items-center gap-1.5 transition-all shadow-md"
+        >
+          <span>📷 360° Street View</span>
+        </button>
+
+        {/* Heatmap Toggle Badge */}
         <button
           onClick={() => setHeatmapActive(!heatmapActive)}
-          className={`text-xs px-2.5 py-1.5 rounded-md font-semibold flex items-center gap-1.5 transition-all ${
+          className={`text-xs px-2.5 py-1.5 rounded-lg font-semibold flex items-center gap-1.5 transition-all ${
             heatmapActive
-              ? "bg-rose-600 text-white shadow-md shadow-rose-950"
+              ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md shadow-rose-950/60"
               : "bg-slate-800 text-slate-400 hover:text-slate-200"
           }`}
         >
-          <span>🔥 Heat Points Overlay</span>
-          <span className="bg-slate-950 text-rose-300 text-[10px] px-1.5 py-0.5 rounded-full font-mono font-bold">
-            {heatPoints.length} Points
+          <span>🔥 Heat Points</span>
+          <span className="bg-slate-950 text-pink-300 text-[10px] px-1.5 py-0.5 rounded-full font-mono font-bold">
+            {heatPoints.length}
           </span>
         </button>
       </div>

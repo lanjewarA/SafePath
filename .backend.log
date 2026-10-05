@@ -1,0 +1,6 @@
+INFO:     Started server process [17792]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+[RAG Copilot] Indexed 6 safety documents into ChromaDB collection.
+INFO:     127.0.0.1:61217 - "GET /api/health HTTP/1.1" 200 OK

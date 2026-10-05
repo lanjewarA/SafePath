@@ -20,10 +20,32 @@ def load_graph_data() -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     db_segments = fetch_all_segments()
     if db_segments and len(db_segments) >= 10:
         print(f"[Routing Engine] Loaded {len(db_segments)} segments from Supabase PostGIS.")
+
+        # The segments table has no u_node/v_node columns, so recover endpoint
+        # labels from the local dataset (JSON node names) and inject them into
+        # each segment. This guarantees the node ids used here are identical to
+        # the ones build_networkx_graph() creates from u_node/v_node, and that
+        # shared physical endpoints always map to the same graph node.
+        label_by_coord: Dict[Tuple[float, float], str] = {}
+        if os.path.exists(DATASET_FILE):
+            with open(DATASET_FILE, "r", encoding="utf-8") as f:
+                local_nodes = json.load(f).get("nodes", [])
+            for n in local_nodes:
+                label_by_coord[(round(float(n["lat"]), 6), round(float(n["lon"]), 6))] = n["name"]
+
+        def endpoint_label(lat: Any, lon: Any) -> str:
+            key = (round(float(lat), 6), round(float(lon), 6))
+            label = label_by_coord.get(key) or f"{lat},{lon}"
+            label_by_coord.setdefault(key, label)
+            return label
+
         nodes_dict = {}
         for s in db_segments:
-            nodes_dict[s.get("u_node", s["start_lat"])] = {"name": s.get("u_node", "Start"), "lat": s["start_lat"], "lon": s["start_lon"]}
-            nodes_dict[s.get("v_node", s["end_lat"])] = {"name": s.get("v_node", "End"), "lat": s["end_lat"], "lon": s["end_lon"]}
+            u_node = endpoint_label(s["start_lat"], s["start_lon"])
+            v_node = endpoint_label(s["end_lat"], s["end_lon"])
+            s["u_node"], s["v_node"] = u_node, v_node
+            nodes_dict[u_node] = {"name": u_node, "lat": s["start_lat"], "lon": s["start_lon"]}
+            nodes_dict[v_node] = {"name": v_node, "lat": s["end_lat"], "lon": s["end_lon"]}
         return list(nodes_dict.values()), db_segments
 
     if os.path.exists(DATASET_FILE):

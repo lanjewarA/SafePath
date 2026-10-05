@@ -9,7 +9,66 @@ html, body {
   margin: 0;
   padding: 0;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  background-color: #0f172a;
-  color: #f8fafc;
+  color: #e2e8f0;
 }
 
+/* Positive greenish → pink gradient: medium tone, clearly colored on both ends */
+body {
+  min-height: 100vh;
+  background: 
+    radial-gradient(1100px 620px at 6% -14%, rgba(52, 211, 153, 0.578), transparent 62%),
+    radial-gradient(1000px 600px at 22% 6%, rgba(19, 232, 204, 0.22), transparent 60%),
+    radial-gradient(1100px 620px at 96% 114%, rgba(243, 97, 173, 0.619), transparent 62%),
+    radial-gradient(900px 560px at 78% 96%, rgba(236, 110, 170, 0.18), transparent 58%),
+    linear-gradient(140deg, #10403a 0%, #175145 30%, #2b3442 58%, #4b2a42 80%, #622a4d 100%);
+  background-attachment: fixed;
+  color: #e2e8f0;
+}
+
+/* Dark frosted glass with a faint green→pink wash so every card carries the theme */
+.glass-panel {
+  background:
+    linear-gradient(135deg, rgba(52, 211, 153, 0.07), rgba(244, 114, 182, 0.07)),
+    rgba(10, 18, 24, 0.55);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.30), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.glass-panel-strong {
+  background:
+    linear-gradient(135deg, rgba(52, 211, 153, 0.08), rgba(244, 114, 182, 0.08)),
+    rgba(12, 20, 28, 0.78);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* Soft inset surface for inputs / stat tiles inside a glass panel */
+.glass-inset {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+}
+
+/* Navbar: green → pink accent underline that states the theme identity */
+.nav-accent {
+  position: relative;
+}
+.nav-accent::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: linear-gradient(90deg, #2dd4bf 0%, #34d399 35%, #f472b6 70%, #ec4899 100%);
+  opacity: 0.85;
+}
+
+/* Leaflet controls blend with the dark glass theme */
+.leaflet-control-attribution {
+  background: rgba(10, 16, 20, 0.75) !important;
+  backdrop-filter: blur(6px);
+  color: #94a3b8;
+}
+.leaflet-control-attribution a { color: #2dd4bf; }
