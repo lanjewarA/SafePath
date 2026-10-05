@@ -61,7 +61,7 @@ body {
   right: 0;
   bottom: -1px;
   height: 2px;
-  background: linear-gradient(90deg, #2dd4bf 0%, #34d399 35%, #f472b6 70%, #ec4899 100%);
+  background: linear-gradient(90deg, #2dd4bf 0%, #e7d427 35%, #eb8dbd 70%, #ec4899 100%);
   opacity: 0.85;
 }
 
