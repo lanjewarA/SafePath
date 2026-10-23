@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { AlertTriangle, Send, CheckCircle2, XCircle, Sparkles, MapPin, Tag, ShieldAlert, RefreshCw } from "lucide-react";
+import { apiUrl } from "@/lib/api";
 
 interface EvaluationResult {
   report_id: string;
@@ -26,7 +27,7 @@ export default function ReportPage() {
   const fetchRecentReports = async () => {
     setLoadingReports(true);
     try {
-      const res = await fetch("http://localhost:8000/api/reports/list");
+      const res = await fetch(apiUrl("/api/reports/list"));
       if (res.ok) {
         const data = await res.json();
         setRecentReports(data.reports || []);
@@ -49,7 +50,7 @@ export default function ReportPage() {
     setEvalResult(null);
 
     try {
-      const res = await fetch("http://localhost:8000/api/reports/submit", {
+      const res = await fetch(apiUrl("/api/reports/submit"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

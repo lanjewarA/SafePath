@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { AlertTriangle, Check, Copy, MapPin, Navigation, Share2, Square, Star, Search, ShieldCheck, CheckCircle2 } from "lucide-react";
+import { apiUrl } from "@/lib/api";
 
 type Coordinates = { lat: number; lon: number };
 type RouteOption = {
@@ -19,7 +20,6 @@ const SafeWalkMap = dynamic(() => import("@/components/SafeWalkMap"), {
   loading: () => <div className="min-h-[480px] animate-pulse bg-slate-900/60 rounded-xl" />,
 });
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 const DEVIATION_LIMIT_METERS = 100;
 
 // Nagpur Specific Preset Landmarks
@@ -153,7 +153,7 @@ export default function SafeWalkPage() {
 
     const controller = new AbortController();
     setStatus("Calculating your safest route in Nagpur...");
-    fetch(`${API_BASE}/api/routes/calculate`, {
+    fetch(apiUrl("/api/routes/calculate"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       signal: controller.signal,
@@ -323,7 +323,7 @@ export default function SafeWalkPage() {
     try {
       if (hasHarassment || lightingRating <= 2 || isDeserted) {
         const hazardType = hasHarassment ? "harassment_risk" : lightingRating <= 2 ? "poor_lighting" : "isolated_area";
-        await fetch(`${API_BASE}/api/reports/submit`, {
+        await fetch(apiUrl("/api/reports/submit"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Send, Bot, User, Loader2 } from "lucide-react";
+import { apiUrl } from "@/lib/api";
 
 interface Message {
   sender: "user" | "copilot";
@@ -30,7 +31,7 @@ export default function ChatPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:8000/api/chat/ask", {
+      const res = await fetch(apiUrl("/api/chat/ask"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ user_query: userText }),

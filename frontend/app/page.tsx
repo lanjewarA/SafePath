@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { Search, ShieldCheck, Activity, MapPin, Loader2, AlertCircle, Lightbulb, Info, Sun, Moon, Sunrise } from "lucide-react";
 import type { RouteOption, RouteResponse, HeatPoint, DBSegment } from "@/components/Map";
+import { apiUrl } from "@/lib/api";
 
 // Dynamically import Leaflet Map with ssr: false
 const DynamicMap = dynamic(() => import("@/components/Map"), {
@@ -61,7 +62,7 @@ export default function HomePage() {
   };
 
   useEffect(() => {
-    fetch("http://localhost:8000/api/health")
+    fetch(apiUrl("/api/health"))
       .then((res) => res.json())
       .then((data) => {
         setHealthStatus(`${data.service || "SafePath Backend"} is ${data.status}`);
@@ -73,7 +74,7 @@ export default function HomePage() {
       });
 
     // Fetch Heat Points from Supabase & Community Reports
-    fetch("http://localhost:8000/api/reports/heatpoints")
+    fetch(apiUrl("/api/reports/heatpoints"))
       .then((res) => res.json())
       .then((data) => {
         if (data.heat_points) {
@@ -85,7 +86,7 @@ export default function HomePage() {
       });
 
     // Fetch full street-segment network from Supabase for the DB overlay layer
-    fetch("http://localhost:8000/api/segments")
+    fetch(apiUrl("/api/segments"))
       .then((res) => res.json())
       .then((data) => {
         if (data.segments) {
@@ -131,7 +132,7 @@ export default function HomePage() {
         payload.origin_name = startLoc;
       }
 
-      const response = await fetch("http://localhost:8000/api/routes/calculate", {
+      const response = await fetch(apiUrl("/api/routes/calculate"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
