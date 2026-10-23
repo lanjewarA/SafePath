@@ -4,7 +4,7 @@ import math
 import networkx as nx
 from typing import List, Dict, Any, Tuple, Optional
 from app.db.supabase_client import fetch_all_segments
-from app.ml.baseline_rf import predict_safety_score
+from app.ml.baseline_rf import predict_safety_score, predict_safety_scores
 from app.routing.routing_service import apply_spatial_heat_weights
 from app.schemas.route_schema import RouteOption, SegmentDetail, RouteResponse
 
@@ -56,7 +56,11 @@ def load_graph_data() -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
 
     raise FileNotFoundError("No street segment data available for routing!")
 
-def calculate_segment_risk_features(seg: Dict[str, Any], time_of_day: str = "night") -> Dict[str, Any]:
+def calculate_segment_risk_features(
+    seg: Dict[str, Any],
+    time_of_day: str = "night",
+    rf_pred_score: Optional[float] = None,
+) -> Dict[str, Any]:
     """
     Calculate comprehensive safety & risk metrics for a single road segment.
     Combines:
@@ -65,14 +69,11 @@ def calculate_segment_risk_features(seg: Dict[str, Any], time_of_day: str = "nig
     3. Lighting Score
     4. Crowd / POI activity proxy adjusted for Time of Day
     5. Isolation score
-    6. Incident count & CCTV Alert proximity
     """
     crime = float(seg.get("crime_score", 0.3))
     lighting = float(seg.get("lighting_score", 0.7))
-    cctv = float(seg.get("cctv_density", 0.5))
     crowd = float(seg.get("crowd_density", 0.5))
     incident_count = int(seg.get("incident_count", 1 if crime > 0.4 else 0))
-    cctv_alert = bool(seg.get("cctv_alert", cctv < 0.3))
 
     # Time-of-day crowd/activity modifier
     tod = time_of_day.lower() if time_of_day else "night"
@@ -84,28 +85,27 @@ def calculate_segment_risk_features(seg: Dict[str, Any], time_of_day: str = "nig
         adjusted_crowd = crowd * 1.0
 
     # Derived Isolation score
-    isolation = (1.0 - lighting) * 0.4 + (1.0 - adjusted_crowd) * 0.4 + (1.0 - cctv) * 0.2
+    isolation = (1.0 - lighting) * 0.5 + (1.0 - adjusted_crowd) * 0.5
     isolation = max(0.0, min(1.0, isolation))
 
     # 1. Baseline Random Forest Risk
-    rf_pred_score = predict_safety_score(crime, lighting, cctv, crowd)
+    if rf_pred_score is None:
+        rf_pred_score = predict_safety_score(crime, lighting, crowd)
     rf_risk = max(0.0, min(1.0, 1.0 - (rf_pred_score / 100.0)))
 
     # 2. GNN Spatial Neighbor Risk (Simulated spatial propagation from 2-hop graph degree/neighbors)
-    spatial_modifier = (crime * 0.4) + (isolation * 0.4) + (0.2 if cctv_alert else 0.0)
+    spatial_modifier = (crime * 0.4) + (isolation * 0.6)
     gnn_risk = max(0.0, min(1.0, (rf_risk * 0.6) + (spatial_modifier * 0.4)))
 
     # Direct environmental risk signals
     lighting_risk = 1.0 - lighting
-    cctv_incident_risk = min(1.0, (incident_count * 0.25) + (0.3 if cctv_alert else 0.0))
 
     # Composite Final Segment Risk (0.0 = safe, 1.0 = dangerous)
     final_risk = (
         0.40 * gnn_risk +
         0.25 * rf_risk +
         0.15 * lighting_risk +
-        0.10 * isolation +
-        0.10 * cctv_incident_risk
+        0.20 * isolation
     )
     final_risk = round(max(0.0, min(1.0, final_risk)), 4)
     safety_score = round((1.0 - final_risk) * 100.0, 2)
@@ -119,22 +119,30 @@ def calculate_segment_risk_features(seg: Dict[str, Any], time_of_day: str = "nig
         "rf_risk": round(rf_risk, 4),
         "crime_score": crime,
         "lighting_score": lighting,
-        "cctv_density": cctv,
         "crowd_density": crowd,
         "isolation_score": round(isolation, 4),
         "incident_count": incident_count,
-        "cctv_alert": cctv_alert,
     }
 
 def build_networkx_graph(segments: List[Dict[str, Any]], time_of_day: str = "night") -> nx.Graph:
     """Build NetworkX undirected graph from street segments with risk weights."""
     G = nx.Graph()
+    rf_scores = predict_safety_scores(
+        [
+            (
+                float(seg.get("crime_score", 0.3)),
+                float(seg.get("lighting_score", 0.7)),
+                float(seg.get("crowd_density", 0.5)),
+            )
+            for seg in segments
+        ]
+    )
 
-    for seg in segments:
+    for seg, rf_score in zip(segments, rf_scores):
         u = seg.get("u_node", f"{seg['start_lat']},{seg['start_lon']}")
         v = seg.get("v_node", f"{seg['end_lat']},{seg['end_lon']}")
 
-        metrics = calculate_segment_risk_features(seg, time_of_day)
+        metrics = calculate_segment_risk_features(seg, time_of_day, rf_pred_score=rf_score)
         length = float(seg["length_meters"])
         start = [float(seg["start_lat"]), float(seg["start_lon"])]
         end = [float(seg["end_lat"]), float(seg["end_lon"])]
@@ -172,11 +180,9 @@ def build_networkx_graph(segments: List[Dict[str, Any]], time_of_day: str = "nig
             rf_risk=metrics["rf_risk"],
             crime_score=metrics["crime_score"],
             lighting_score=metrics["lighting_score"],
-            cctv_density=metrics["cctv_density"],
             crowd_density=metrics["crowd_density"],
             isolation_score=metrics["isolation_score"],
             incident_count=metrics["incident_count"],
-            cctv_alert=metrics["cctv_alert"],
             start_lat=start[0],
             start_lon=start[1],
             end_lat=end[0],
@@ -198,19 +204,62 @@ def find_closest_node(
         node_name = list(graph.nodes())[0] if len(graph.nodes()) > 0 else "center"
         return node_name, [21.1458, 79.0882]
 
+    graph_node_rows = [node for node in nodes if node["name"] in graph]
+    if not graph_node_rows:
+        node_name = next(iter(graph.nodes()), "center")
+        return node_name, [21.1458, 79.0882]
+
+    largest_component = (
+        max(nx.connected_components(graph), key=len)
+        if graph.number_of_nodes()
+        else set()
+    )
+    connected_nodes = [
+        node for node in graph_node_rows
+        if node["name"] in largest_component
+    ]
+    preferred_nodes = connected_nodes or graph_node_rows
+
+    def nearest_node(targets: List[Tuple[float, float]]) -> Tuple[str, List[float], float]:
+        candidates = preferred_nodes
+        best = min(
+            candidates,
+            key=lambda node: min(
+                math.hypot(
+                    (float(node["lat"]) - target_lat) * 110_540.0,
+                    (float(node["lon"]) - target_lon)
+                    * 111_320.0
+                    * math.cos(math.radians(target_lat)),
+                )
+                for target_lat, target_lon in targets
+            ),
+        )
+        target_distance = min(
+            math.hypot(
+                (float(best["lat"]) - target_lat) * 110_540.0,
+                (float(best["lon"]) - target_lon)
+                * 111_320.0
+                * math.cos(math.radians(target_lat)),
+            )
+            for target_lat, target_lon in targets
+        )
+        return best["name"], [float(best["lat"]), float(best["lon"])], target_distance
+
     # 1. Exact coordinate lookup
     if lat is not None and lon is not None:
-        best_node = None
-        best_coords = [lat, lon]
-        best_dist = float("inf")
-        for n in nodes:
-            dist = math.hypot(n["lat"] - lat, n["lon"] - lon)
-            if dist < best_dist and n["name"] in graph:
-                best_dist = dist
-                best_node = n["name"]
-                best_coords = [n["lat"], n["lon"]]
-        if best_node:
+        best_node, best_coords, distance = nearest_node([(lat, lon)])
+        if distance <= 300.0 or not connected_nodes:
             return best_node, best_coords
+        fallback_node = min(
+            graph_node_rows,
+            key=lambda node: math.hypot(
+                (float(node["lat"]) - lat) * 110_540.0,
+                (float(node["lon"]) - lon)
+                * 111_320.0
+                * math.cos(math.radians(lat)),
+            ),
+        )
+        return fallback_node["name"], [fallback_node["lat"], fallback_node["lon"]]
 
     # 2. Text matching against node and segment names
     if query:
@@ -228,12 +277,19 @@ def find_closest_node(
                 s_name = s.get("name", "").lower()
                 matched = query_lower in s_name or any(tok in s_name for tok in tokens)
                 if matched:
+                    endpoints = [
+                        (float(s["start_lat"]), float(s["start_lon"])),
+                        (float(s["end_lat"]), float(s["end_lon"])),
+                    ]
+                    node, coords, distance = nearest_node(endpoints)
+                    if distance <= 300.0:
+                        return node, coords
                     u = s.get("u_node")
                     if u and u in graph:
-                        return u, [s["start_lat"], s["start_lon"]]
+                        return u, endpoints[0]
                     v = s.get("v_node")
                     if v and v in graph:
-                        return v, [s["end_lat"], s["end_lon"]]
+                        return v, endpoints[1]
 
     first_node = nodes[0]
     return first_node["name"], [first_node["lat"], first_node["lon"]]
@@ -331,11 +387,9 @@ def compute_route_metrics(
             rf_risk=edge["rf_risk"],
             crime_score=edge["crime_score"],
             lighting_score=edge["lighting_score"],
-            cctv_density=edge["cctv_density"],
             crowd_density=edge["crowd_density"],
             isolation_score=edge["isolation_score"],
             incident_count=edge["incident_count"],
-            cctv_alert=edge["cctv_alert"],
             start_lat=edge_start[0],
             start_lon=edge_start[1],
             end_lat=edge_end[0],

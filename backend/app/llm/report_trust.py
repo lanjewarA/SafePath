@@ -64,7 +64,7 @@ def heuristic_report_evaluation(location: str, report_type: str, description: st
         }
 
     # Rule 3: Genuine safety keywords boost credibility
-    safety_keywords = ["light", "dark", "broken", "cctv", "camera", "isolated", "flyover", "station", "stalk", "harass", "police", "crowd", "shadow"]
+    safety_keywords = ["light", "dark", "broken", "isolated", "flyover", "station", "stalk", "harass", "police", "crowd", "shadow"]
     matches = sum(1 for kw in safety_keywords if kw in text_lower)
     
     coherence = min(1.0, 0.50 + (matches * 0.15))

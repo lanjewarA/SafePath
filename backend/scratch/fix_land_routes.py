@@ -74,8 +74,8 @@ def main():
             "id": "seg-art-001", "osm_id": 9000001, "name": "Lady Jamshedji (L.J.) Road - South",
             "u_node": "Dadar West Railway Station", "v_node": "Matunga Road",
             "start_lat": 19.0178, "start_lon": 72.8478, "end_lat": 19.0270, "end_lon": 72.8450,
-            "length_meters": 1050.0, "crime_score": 0.15, "lighting_score": 0.88, "cctv_density": 0.90, "crowd_density": 0.85,
-            "safety_score": 88.5,
+            "length_meters": 1050.0, "crime_score": 0.15, "lighting_score": 0.88, "crowd_density": 0.85,
+            "safety_score": 85.94,
             "geometry": [
                 [19.0178, 72.8478], [19.0198, 72.8472], [19.0218, 72.8465], [19.0242, 72.8458], [19.0270, 72.8450]
             ]
@@ -85,8 +85,8 @@ def main():
             "id": "seg-art-002", "osm_id": 9000002, "name": "Lady Jamshedji (L.J.) Road - North",
             "u_node": "Matunga Road", "v_node": "Mahim Junction",
             "start_lat": 19.0270, "start_lon": 72.8450, "end_lat": 19.0410, "end_lon": 72.8430,
-            "length_meters": 1580.0, "crime_score": 0.18, "lighting_score": 0.85, "cctv_density": 0.88, "crowd_density": 0.82,
-            "safety_score": 85.0,
+            "length_meters": 1580.0, "crime_score": 0.18, "lighting_score": 0.85, "crowd_density": 0.82,
+            "safety_score": 82.94,
             "geometry": [
                 [19.0270, 72.8450], [19.0305, 72.8444], [19.0340, 72.8438], [19.0375, 72.8434], [19.0410, 72.8430]
             ]
@@ -96,8 +96,8 @@ def main():
             "id": "seg-art-003", "osm_id": 9000003, "name": "Mahim Causeway Land Bridge",
             "u_node": "Mahim Junction", "v_node": "Bandra West Station",
             "start_lat": 19.0410, "start_lon": 72.8430, "end_lat": 19.0544, "end_lon": 72.8402,
-            "length_meters": 1520.0, "crime_score": 0.12, "lighting_score": 0.92, "cctv_density": 0.95, "crowd_density": 0.88,
-            "safety_score": 91.2,
+            "length_meters": 1520.0, "crime_score": 0.12, "lighting_score": 0.92, "crowd_density": 0.88,
+            "safety_score": 89.25,
             "geometry": [
                 [19.0410, 72.8430], [19.0440, 72.8415], [19.0475, 72.8408], [19.0510, 72.8403], [19.0544, 72.8402]
             ]
@@ -107,8 +107,8 @@ def main():
             "id": "seg-art-004", "osm_id": 9000004, "name": "Western Express Highway - Sion Flyover Link",
             "u_node": "Dadar East T.T. Circle", "v_node": "Sion Junction Circle",
             "start_lat": 19.0185, "start_lon": 72.8530, "end_lat": 19.0390, "end_lon": 72.8610,
-            "length_meters": 2400.0, "crime_score": 0.20, "lighting_score": 0.86, "cctv_density": 0.92, "crowd_density": 0.80,
-            "safety_score": 84.0,
+            "length_meters": 2400.0, "crime_score": 0.20, "lighting_score": 0.86, "crowd_density": 0.80,
+            "safety_score": 81.88,
             "geometry": [
                 [19.0185, 72.8530], [19.0235, 72.8550], [19.0285, 72.8570], [19.0338, 72.8590], [19.0390, 72.8610]
             ]
@@ -117,8 +117,8 @@ def main():
             "id": "seg-art-005", "osm_id": 9000005, "name": "BKC Western Connector Flyover",
             "u_node": "Sion Junction Circle", "v_node": "Bandra East Terminus",
             "start_lat": 19.0390, "start_lon": 72.8610, "end_lat": 19.0620, "end_lon": 72.8425,
-            "length_meters": 3100.0, "crime_score": 0.22, "lighting_score": 0.84, "cctv_density": 0.89, "crowd_density": 0.75,
-            "safety_score": 81.5,
+            "length_meters": 3100.0, "crime_score": 0.22, "lighting_score": 0.84, "crowd_density": 0.75,
+            "safety_score": 79.12,
             "geometry": [
                 [19.0390, 72.8610], [19.0445, 72.8565], [19.0500, 72.8520], [19.0560, 72.8470], [19.0620, 72.8425]
             ]

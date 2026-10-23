@@ -19,7 +19,6 @@ CREATE TABLE IF NOT EXISTS public.segments (
     length_meters FLOAT NOT NULL DEFAULT 100.0,
     crime_score FLOAT NOT NULL DEFAULT 0.2,       -- 0.0 (low crime) to 1.0 (high crime)
     lighting_score FLOAT NOT NULL DEFAULT 0.7,    -- 0.0 (dark) to 1.0 (well lit)
-    cctv_density FLOAT NOT NULL DEFAULT 0.5,      -- 0.0 (no cameras) to 1.0 (high CCTV)
     crowd_density FLOAT NOT NULL DEFAULT 0.6,     -- 0.0 (isolated) to 1.0 (crowded)
     safety_score FLOAT NOT NULL DEFAULT 75.0,     -- 0.0 (dangerous) to 100.0 (safe)
     geom GEOMETRY(LineString, 4326),
@@ -37,7 +36,7 @@ CREATE TABLE IF NOT EXISTS public.safety_reports (
     segment_id TEXT REFERENCES public.segments(id) ON DELETE SET NULL,
     latitude DOUBLE PRECISION NOT NULL,
     longitude DOUBLE PRECISION NOT NULL,
-    report_type TEXT NOT NULL,                  -- 'poor_lighting', 'harassment_risk', 'cctv_broken', 'isolated_area'
+    report_type TEXT NOT NULL,                  -- 'poor_lighting', 'harassment_risk', 'isolated_area'
     description TEXT NOT NULL,
     credibility_score FLOAT DEFAULT 0.5,        -- Assessed by Gemini LLM (0.0 to 1.0)
     status TEXT NOT NULL DEFAULT 'pending',     -- 'pending', 'approved', 'rejected'
@@ -69,4 +68,3 @@ CREATE TABLE IF NOT EXISTS public.routes (
     segment_ids TEXT[] NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
-

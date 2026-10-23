@@ -15,7 +15,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([
     {
       sender: "copilot",
-      text: "Hello! I am your SafePath AI Safety Copilot. Ask me anything about calculated route safety scores, lighting conditions, GNN risk predictions, or safe walking detours across Mumbai / West India.",
+      text: "Hello! I am your SafePath AI Safety Copilot. Ask me anything about calculated route safety scores, lighting conditions, GNN risk predictions, or safe walking detours across Nagpur",
       engine: "Gemini LLM + ChromaDB RAG Engine"
     },
   ]);
@@ -80,22 +80,39 @@ export default function ChatPage() {
       <div className="flex flex-wrap gap-2 text-xs">
         <span className="text-[10px] text-slate-400 font-semibold w-full">Quick Questions:</span>
         <button
-          onClick={() => { setQuery("Why is Route B recommended over Route A?"); }}
+          type="button"
+          onClick={() => { setQuery("Why might the recommended route be longer than the shortest route?"); }}
           className="glass-inset hover:bg-white/10 border border-white/10 text-slate-300 px-2.5 py-1 rounded-md"
         >
-          Why is Route B recommended?
+          Why is the recommended route longer?
         </button>
         <button
-          onClick={() => { setQuery("Why is Senapati Bapat Marg flagged high risk at 10 PM?"); }}
+          type="button"
+          onClick={() => { setQuery("What does the safety score tell me about a route?"); }}
           className="glass-inset hover:bg-white/10 border border-white/10 text-slate-300 px-2.5 py-1 rounded-md"
         >
-          Senapati Bapat Marg risk?
+          What does my route's safety score mean?
         </button>
         <button
-          onClick={() => { setQuery("Which route has the best CCTV density and lighting?"); }}
+          type="button"
+          onClick={() => { setQuery("Which Nagpur areas have better street lighting for walking at night?"); }}
           className="glass-inset hover:bg-white/10 border border-white/10 text-slate-300 px-2.5 py-1 rounded-md"
         >
-          Best lighting & CCTV route?
+          Better-lit areas for night walks?
+        </button>
+        <button
+          type="button"
+          onClick={() => { setQuery("What should I keep in mind when walking near Sitabuldi after 10 PM?"); }}
+          className="glass-inset hover:bg-white/10 border border-white/10 text-slate-300 px-2.5 py-1 rounded-md"
+        >
+          Walking near Sitabuldi at night?
+        </button>
+        <button
+          type="button"
+          onClick={() => { setQuery("How can I use SafeWalk and SOS during my trip?"); }}
+          className="glass-inset hover:bg-white/10 border border-white/10 text-slate-300 px-2.5 py-1 rounded-md"
+        >
+          How do SafeWalk and SOS help?
         </button>
       </div>
 

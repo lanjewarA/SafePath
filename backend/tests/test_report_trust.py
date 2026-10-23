@@ -9,9 +9,9 @@ client = TestClient(app)
 PLANTED_BENCHMARK_REPORTS = [
     # Genuine Safety Reports (Expected: is_trustworthy == True)
     {"location": "Dadar West Flyover, Mumbai", "type": "poor_lighting", "text": "Streetlight on the west exit of the flyover has been out for 3 days, making the stairs extremely dark after 8 PM.", "expected_trustworthy": True},
-    {"location": "Lower Parel Station Exit", "type": "isolated_area", "text": "Pedestrian underpass has no functional CCTV and no crowd activity late at night.", "expected_trustworthy": True},
+    {"location": "Lower Parel Station Exit", "type": "isolated_area", "text": "Pedestrian underpass is deserted with no crowd activity late at night.", "expected_trustworthy": True},
     {"location": "Senapati Bapat Marg", "type": "harassment_risk", "text": "Isolated alleyway near construction site with broken streetlights and poor visibility.", "expected_trustworthy": True},
-    {"location": "Mahim Junction Footbridge", "type": "cctv_broken", "text": "Surveillance camera dome is shattered and dark walkway is unmonitored.", "expected_trustworthy": True},
+    {"location": "Mahim Junction Footbridge", "type": "poor_lighting", "text": "Footbridge lights are broken, leaving the walkway dark and difficult to see.", "expected_trustworthy": True},
     {"location": "Prabhadevi Chowk", "type": "poor_lighting", "text": "Dark alleyway behind bus stop has zero working lights and high shadows.", "expected_trustworthy": True},
 
     # Planted Fake / Spam Reports (Expected: is_trustworthy == False)

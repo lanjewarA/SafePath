@@ -39,11 +39,9 @@ class SegmentDetail(BaseModel):
     rf_risk: float                            # Random Forest baseline risk prediction
     crime_score: float
     lighting_score: float
-    cctv_density: float
     crowd_density: float
     isolation_score: float
     incident_count: int
-    cctv_alert: bool
     start_lat: float
     start_lon: float
     end_lat: float
@@ -80,4 +78,3 @@ class RouteResponse(BaseModel):
     recommended_route_id: str
     recommendation_summary: str
     routes: List[RouteOption]
-

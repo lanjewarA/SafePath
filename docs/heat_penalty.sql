@@ -29,9 +29,6 @@ VALUES
     ('hazard-ng-002', 21.0510, 79.0040, 0.88, 'isolated_area',
      'Butibori MIDC Road - Deserted industrial zone late night with minimal pedestrian presence.',
      'Butibori MIDC Road, Nagpur'),
-    ('hazard-ng-003', 21.1080, 79.0120, 0.75, 'cctv_broken',
-     'MIDC Hingna Road - Damaged surveillance cameras near logistics hub.',
-     'MIDC Hingna Road, Nagpur'),
     ('hazard-ng-004', 21.1290, 79.0870, 0.80, 'harassment_risk',
      'Wardha Road Outer Ring - Elevated caution reported near deserted fuel stations late night.',
      'Wardha Road Outer Ring, Nagpur'),
@@ -44,7 +41,12 @@ VALUES
 ON CONFLICT (id) DO UPDATE SET
     latitude = EXCLUDED.latitude,
     longitude = EXCLUDED.longitude,
-    intensity = EXCLUDED.intensity;
+    intensity = EXCLUDED.intensity,
+    report_type = EXCLUDED.report_type,
+    description = EXCLUDED.description,
+    location_landmark = EXCLUDED.location_landmark;
+
+DELETE FROM public.seeded_hazards WHERE id = 'hazard-ng-003';
 
 -- Unified Nagpur-only heat-point view: approved community reports + seeded hazards.
 CREATE OR REPLACE VIEW public.v_heat_points AS

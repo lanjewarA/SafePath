@@ -8,16 +8,16 @@ def test_pyg_graph_builder():
 
     assert meta["num_nodes"] >= 50
     assert meta["num_edges"] >= 100
-    assert meta["num_features"] == 5
+    assert meta["num_features"] == 4
 
     assert pyg_data.x.dim() == 2
-    assert pyg_data.x.size(1) == 5
+    assert pyg_data.x.size(1) == 4
     assert pyg_data.edge_index.dim() == 2
     assert pyg_data.edge_index.size(0) == 2
 
 def test_gnn_model_forward_pass():
     pyg_data, meta = build_pyg_graph_data()
-    model = SafetyGraphSAGE(in_channels=5, hidden_channels=16, out_channels=1)
+    model = SafetyGraphSAGE(in_channels=4, hidden_channels=16, out_channels=1)
 
     model.eval()
     with torch.no_grad():

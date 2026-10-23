@@ -20,7 +20,7 @@ def build_pyg_graph_data() -> Tuple[Data, Dict[str, Any]]:
     """
     Convert Mumbai street network into a PyTorch Geometric Data graph object.
     
-    Node Features (x): [crime_score, lighting_score, cctv_density, crowd_density, normalized_length]
+    Node Features (x): [crime_score, lighting_score, crowd_density, normalized_length]
     Edge Index (edge_index): Undirected graph connections between adjacent street segments.
     Target (y): Safety score (0 to 100).
     """
@@ -33,7 +33,7 @@ def build_pyg_graph_data() -> Tuple[Data, Dict[str, Any]]:
     num_nodes = len(nodes)
 
     # Initialize node feature aggregations
-    node_features = np.zeros((num_nodes, 5), dtype=np.float32)
+    node_features = np.zeros((num_nodes, 4), dtype=np.float32)
     node_targets = np.zeros((num_nodes, 1), dtype=np.float32)
     node_counts = np.zeros((num_nodes, 1), dtype=np.float32)
 
@@ -54,7 +54,6 @@ def build_pyg_graph_data() -> Tuple[Data, Dict[str, Any]]:
             feat = [
                 float(seg.get("crime_score", 0.3)),
                 float(seg.get("lighting_score", 0.7)),
-                float(seg.get("cctv_density", 0.5)),
                 float(seg.get("crowd_density", 0.5)),
                 float(seg.get("length_meters", 100.0)) / 1000.0  # Normalize length to km
             ]

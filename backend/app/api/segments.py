@@ -43,7 +43,6 @@ def normalize_segment(seg: Dict[str, Any], source: str) -> Dict[str, Any]:
         "safety_score": float(seg.get("safety_score", 75.0)),
         "crime_score": float(seg.get("crime_score", 0.2)),
         "lighting_score": float(seg.get("lighting_score", 0.7)),
-        "cctv_density": float(seg.get("cctv_density", 0.5)),
         "crowd_density": float(seg.get("crowd_density", 0.6)),
         "geometry": geometry,
         "source": source,

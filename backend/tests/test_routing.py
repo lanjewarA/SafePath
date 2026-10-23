@@ -1,21 +1,28 @@
 import pytest
+import networkx as nx
 from fastapi.testclient import TestClient
 from app.main import app
-from app.ml.baseline_rf import predict_safety_score
-from app.routing.osm_graphhopper import build_networkx_graph, calculate_safepath_routes, compute_route_metrics
+from app.ml.baseline_rf import predict_safety_score, predict_safety_scores
+from app.routing.osm_graphhopper import (
+    build_networkx_graph,
+    calculate_safepath_routes,
+    compute_route_metrics,
+    find_closest_node,
+)
 
 client = TestClient(app)
 
 def test_random_forest_prediction():
-    # High safety features: low crime, high lighting, high CCTV, high crowd
-    safe_pred = predict_safety_score(crime_score=0.1, lighting_score=0.9, cctv_density=0.8, crowd_density=0.8)
+    # High safety features: low crime, high lighting, and active foot traffic
+    safe_pred = predict_safety_score(crime_score=0.1, lighting_score=0.9, crowd_density=0.8)
     assert isinstance(safe_pred, float)
     assert 70.0 <= safe_pred <= 100.0
 
-    # Low safety features: high crime, low lighting, low CCTV, low crowd
-    risky_pred = predict_safety_score(crime_score=0.9, lighting_score=0.1, cctv_density=0.1, crowd_density=0.1)
+    # Low safety features: high crime, low lighting, and little foot traffic
+    risky_pred = predict_safety_score(crime_score=0.9, lighting_score=0.1, crowd_density=0.1)
     assert isinstance(risky_pred, float)
     assert 0.0 <= risky_pred <= 45.0
+    assert predict_safety_scores([(0.1, 0.9, 0.8)]) == [safe_pred]
 
 def test_multi_route_calculation():
     response = calculate_safepath_routes(
@@ -72,6 +79,40 @@ def test_route_geometry_follows_edge_direction_without_synthetic_connections():
 
     assert route.coordinates == [[19.0, 72.01], [19.005, 72.005], [19.0, 72.0]]
     assert not graph.has_edge("B", "C")
+
+
+def test_named_landmark_snaps_to_nearby_largest_connected_road_component():
+    graph = nx.Graph()
+    graph.add_edge("network-a", "network-b")
+    graph.add_edge("isolated-a", "isolated-b")
+    nodes = [
+        {"name": "network-a", "lat": 21.1458, "lon": 79.0886},
+        {"name": "network-b", "lat": 21.1458, "lon": 79.0890},
+        {"name": "isolated-a", "lat": 21.1458, "lon": 79.0882},
+        {"name": "isolated-b", "lat": 21.1460, "lon": 79.0882},
+    ]
+    segments = [
+        {
+            "name": "Sitabuldi Main Road, Nagpur",
+            "u_node": "isolated-a",
+            "v_node": "isolated-b",
+            "start_lat": 21.1458,
+            "start_lon": 79.0882,
+            "end_lat": 21.1460,
+            "end_lon": 79.0882,
+        }
+    ]
+
+    node, coords = find_closest_node(
+        graph,
+        nodes,
+        "Sitabuldi, Nagpur",
+        segments=segments,
+    )
+
+    assert node == "network-a"
+    assert coords == [21.1458, 79.0886]
+
 
 def test_calculate_routes_api_endpoint():
     payload = {

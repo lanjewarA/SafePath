@@ -47,16 +47,6 @@ SEEDED_HAZARDS: List[Dict[str, Any]] = [
         "source": "seeded_hazard",
     },
     {
-        "id": "hazard-ng-003",
-        "latitude": 21.1080,
-        "longitude": 79.0120,
-        "intensity": 0.75,
-        "report_type": "cctv_broken",
-        "description": "MIDC Hingna Road - Damaged surveillance cameras near logistics hub.",
-        "location_landmark": "MIDC Hingna Road, Nagpur",
-        "source": "seeded_hazard",
-    },
-    {
         "id": "hazard-ng-004",
         "latitude": 21.1290,
         "longitude": 79.0870,

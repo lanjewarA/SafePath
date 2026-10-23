@@ -21,18 +21,24 @@ def test_dataset_json_integrity():
 
     # Verify first segment schema
     sample_seg = data["segments"][0]
-    required_keys = ["id", "osm_id", "name", "start_lat", "start_lon", "end_lat", "end_lon", 
-                     "length_meters", "crime_score", "lighting_score", "cctv_density", 
-                     "crowd_density", "safety_score"]
+    required_keys = ["id", "osm_id", "name", "start_lat", "start_lon", "end_lat", "end_lon",
+                     "length_meters", "crime_score", "lighting_score", "crowd_density", "safety_score"]
     for key in required_keys:
         assert key in sample_seg, f"Missing key '{key}' in sample segment!"
+    assert all("cctv_density" not in segment for segment in data["segments"])
 
     # Verify score ranges
     assert 0.0 <= sample_seg["crime_score"] <= 1.0
     assert 0.0 <= sample_seg["lighting_score"] <= 1.0
-    assert 0.0 <= sample_seg["cctv_density"] <= 1.0
     assert 0.0 <= sample_seg["crowd_density"] <= 1.0
     assert 0.0 <= sample_seg["safety_score"] <= 100.0
+    for segment in data["segments"]:
+        expected_score = (
+            0.4375 * (1.0 - segment["crime_score"])
+            + 0.3125 * segment["lighting_score"]
+            + 0.25 * segment["crowd_density"]
+        ) * 100.0
+        assert segment["safety_score"] == pytest.approx(expected_score, abs=0.01)
 
 def test_supabase_client_initialization():
     # Should initialize safely even if environment variables are unset (returns None fallback)
@@ -54,11 +60,11 @@ def test_segments_api_endpoint():
 
     required_keys = {"id", "name", "start_lat", "start_lon", "end_lat", "end_lon",
                      "length_meters", "safety_score", "crime_score", "lighting_score",
-                     "cctv_density", "crowd_density", "geometry", "source"}
+                     "crowd_density", "geometry", "source"}
     for seg in data["segments"]:
         assert required_keys.issubset(seg.keys()), f"Segment {seg.get('id')} missing keys"
         assert 0.0 <= seg["safety_score"] <= 100.0
-        for metric in ("crime_score", "lighting_score", "cctv_density", "crowd_density"):
+        for metric in ("crime_score", "lighting_score", "crowd_density"):
             assert 0.0 <= seg[metric] <= 1.0, f"{metric} out of range in {seg['id']}"
         # Geometry must be Leaflet [lat, lon] pairs inside the West India region
         assert len(seg["geometry"]) >= 2
@@ -68,4 +74,3 @@ def test_segments_api_endpoint():
     # Supabase rows carry the provenance badge the map popup renders
     if data["supabase_active"]:
         assert all(s["source"] == "supabase" for s in data["segments"])
-

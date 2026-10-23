@@ -85,7 +85,7 @@ export default function ReportPage() {
           Community Safety Report & Gemini Trust Filter
         </h1>
         <p className="text-sm text-slate-400">
-          Report active hazards (poor lighting, harassment risk, CCTV outage). Submissions are evaluated in real-time by Google Gemini 2.5 Flash LLM to filter spam and prioritize authentic local safety warnings.
+          Report active hazards such as poor lighting, harassment risk, or isolated walkways. Submissions are evaluated in real-time by Google Gemini 2.5 Flash LLM to filter spam and prioritize authentic local safety warnings.
         </p>
 
         {/* Report Submission Form */}
@@ -117,7 +117,6 @@ export default function ReportPage() {
                 >
                   <option value="poor_lighting" className="text-black bg-white font-medium">💡 Dark / Unlit Streetlight</option>
                   <option value="harassment_risk" className="text-black bg-white font-medium">⚠️ Harassment / Eve-Teasing Risk</option>
-                  <option value="cctv_broken" className="text-black bg-white font-medium">📷 Broken / Missing CCTV Camera</option>
                   <option value="isolated_area" className="text-black bg-white font-medium">🏚️ Deserted / Isolated Walkway</option>
                 </select>
               </div>

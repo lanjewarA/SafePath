@@ -42,8 +42,7 @@ ORDER BY 1;
 -- 1.1 Load full street network (equivalent of fetch_all_segments())
 SELECT id, osm_id, name,
        start_lat, start_lon, end_lat, end_lon,
-       length_meters, crime_score, lighting_score,
-       cctv_density, crowd_density, safety_score
+       length_meters, crime_score, lighting_score, crowd_density, safety_score
 FROM public.segments
 ORDER BY id;
 
@@ -85,13 +84,13 @@ LIMIT 50;
 -- ============================================================
 
 -- 2.1 Top 10 riskiest street segments (route warnings / "avoid" list)
-SELECT id, name, safety_score, crime_score, lighting_score, cctv_density, crowd_density
+SELECT id, name, safety_score, crime_score, lighting_score, crowd_density
 FROM public.segments
 ORDER BY safety_score ASC
 LIMIT 10;
 
 -- 2.2 Top 10 safest street segments
-SELECT id, name, safety_score, crime_score, lighting_score, cctv_density, crowd_density
+SELECT id, name, safety_score, crime_score, lighting_score, crowd_density
 FROM public.segments
 ORDER BY safety_score DESC
 LIMIT 10;
@@ -100,7 +99,6 @@ LIMIT 10;
 SELECT
     ROUND(CORR(crime_score,     safety_score)::numeric, 3) AS corr_crime,
     ROUND(CORR(lighting_score,  safety_score)::numeric, 3) AS corr_lighting,
-    ROUND(CORR(cctv_density,    safety_score)::numeric, 3) AS corr_cctv,
     ROUND(CORR(crowd_density,   safety_score)::numeric, 3) AS corr_crowd
 FROM public.segments;
 
@@ -111,19 +109,17 @@ WHERE lighting_score < 0.50
   AND crowd_density < 0.40
 ORDER BY safety_score ASC;
 
--- 2.5 Segments flagged as needing infrastructure intervention
---     (low lighting OR low CCTV) and still dangerous
+-- 2.5 Segments flagged as needing lighting intervention
 SELECT id, name,
        CASE WHEN lighting_score < 0.4 THEN 'poor_lighting' END AS lighting_flag,
-       CASE WHEN cctv_density  < 0.3 THEN 'low_cctv'      END AS cctv_flag,
        safety_score
 FROM public.segments
-WHERE (lighting_score < 0.40 OR cctv_density < 0.30)
+WHERE lighting_score < 0.40
   AND safety_score < 60
 ORDER BY safety_score ASC;
 
 -- 2.6 Landmark-pair lookup used by the copilot RAG ("why is X risky?")
-SELECT id, name, safety_score, crime_score, lighting_score, cctv_density, crowd_density
+SELECT id, name, safety_score, crime_score, lighting_score, crowd_density
 FROM public.segments
 WHERE name ILIKE '%dharavi%' OR name ILIKE '%dadar%'
 ORDER BY safety_score ASC;
@@ -259,17 +255,17 @@ LIMIT 50;
 -- ============================================================
 
 -- 6.1 RF training set: one row per segment (features -> target)
-SELECT crime_score, lighting_score, cctv_density, crowd_density,
+SELECT crime_score, lighting_score, crowd_density,
        length_meters / 1000.0 AS length_km,
        safety_score AS target
 FROM public.segments;
 
 -- 6.2 GNN edge list: (u_node, v_node, edge features) — mirrors
---     graph_builder.py's [crime, lighting, cctv, crowd, length_km] features
+--     graph_builder.py's [crime, lighting, crowd, length_km] features
 SELECT seg.id AS segment_id,
        seg.start_lat || ',' || seg.start_lon AS u_node,
        seg.end_lat   || ',' || seg.end_lon   AS v_node,
-       seg.crime_score, seg.lighting_score, seg.cctv_density,
+       seg.crime_score, seg.lighting_score,
        seg.crowd_density, seg.length_meters / 1000.0 AS length_km,
        seg.safety_score AS target
 FROM public.segments seg;
@@ -278,17 +274,16 @@ FROM public.segments seg;
 SELECT u.node_key,
        AVG(u.crime_score)    AS avg_crime,
        AVG(u.lighting_score) AS avg_lighting,
-       AVG(u.cctv_density)   AS avg_cctv,
        AVG(u.crowd_density)  AS avg_crowd,
        AVG(u.safety_score)   AS avg_safety,
        COUNT(*)              AS degree
 FROM (
     SELECT start_lat || ',' || start_lon AS node_key,
-           crime_score, lighting_score, cctv_density, crowd_density, safety_score
+           crime_score, lighting_score, crowd_density, safety_score
     FROM public.segments
     UNION ALL
     SELECT end_lat || ',' || end_lon AS node_key,
-           crime_score, lighting_score, cctv_density, crowd_density, safety_score
+           crime_score, lighting_score, crowd_density, safety_score
     FROM public.segments
 ) u
 GROUP BY u.node_key

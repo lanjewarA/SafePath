@@ -44,7 +44,6 @@ def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> fl
 def calculate_composite_safety_score(
     crime_score: float,
     lighting_score: float,
-    cctv_density: float,
     crowd_density: float
 ) -> float:
     """
@@ -52,10 +51,9 @@ def calculate_composite_safety_score(
     Higher score = SAFER street segment.
     """
     normalized_score = (
-        0.35 * (1.0 - crime_score) +
-        0.25 * lighting_score +
-        0.20 * cctv_density +
-        0.20 * crowd_density
+        0.4375 * (1.0 - crime_score) +
+        0.3125 * lighting_score +
+        0.25 * crowd_density
     )
     return round(max(0.0, min(100.0, normalized_score * 100.0)), 2)
 
@@ -94,11 +92,10 @@ def generate_mumbai_safety_dataset(num_additional_nodes: int = 40) -> Dict[str, 
                 
                 crime_score = round(random.uniform(0.05, 0.45) if is_commercial else random.uniform(0.20, 0.75), 2)
                 lighting_score = round(random.uniform(0.60, 0.95) if is_commercial else random.uniform(0.25, 0.80), 2)
-                cctv_density = round(random.uniform(0.50, 0.95) if is_commercial else random.uniform(0.15, 0.65), 2)
                 crowd_density = round(random.uniform(0.55, 0.90) if is_commercial else random.uniform(0.10, 0.60), 2)
 
                 safety_score = calculate_composite_safety_score(
-                    crime_score, lighting_score, cctv_density, crowd_density
+                    crime_score, lighting_score, crowd_density
                 )
 
                 street_name = f"{u['name'].split()[0]} to {v['name'].split()[0]} Connector"
@@ -114,7 +111,6 @@ def generate_mumbai_safety_dataset(num_additional_nodes: int = 40) -> Dict[str, 
                     "length_meters": round(dist, 1),
                     "crime_score": crime_score,
                     "lighting_score": lighting_score,
-                    "cctv_density": cctv_density,
                     "crowd_density": crowd_density,
                     "safety_score": safety_score,
                     "u_node": u["name"],
@@ -144,4 +140,3 @@ if __name__ == "__main__":
 
     print(f"[Dataset Generator] Successfully generated {dataset['total_segments']} street segments across {dataset['total_nodes']} nodes.")
     print(f"[Dataset Generator] Output written to file: mumbai_safety_network.json")
-

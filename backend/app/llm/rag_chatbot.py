@@ -17,44 +17,44 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
 
 # Initialize ChromaDB in-memory client
 chroma_client = chromadb.Client()
-collection = chroma_client.get_or_create_collection(name="safepath_knowledge_base")
+collection = chroma_client.get_or_create_collection(name="safepath_nagpur_knowledge_base")
 
-# Knowledge Base Documents for West India (Mumbai / Pune Region)
+# Knowledge Base Documents for Nagpur, Maharashtra Region
 SAFETY_KNOWLEDGE_DOCS = [
     {
-        "id": "doc-01",
-        "title": "Senapati Bapat Marg Safety Overview",
-        "text": "Senapati Bapat Marg in Mumbai has moderate safety (score 54/100) after 9 PM due to ongoing flyover construction, dim streetlight coverage, and isolated sections near closed industrial mills. Detour recommendation: Use well-lit Gokhale Road or Ranade Road."
+        "id": "doc-ngp-01",
+        "title": "Sitabuldi Market & Main Station Corridor Overview",
+        "text": "Sitabuldi Market and Nagpur Railway Station approach have high crowd density (score 0.85) during day and evening hours. However, narrow alleys behind Variety Square have dim streetlight coverage and low foot traffic after 10 PM. Recommended detour: Stick to main Wardha Road / Jhansi Rani Square road."
     },
     {
-        "id": "doc-02",
-        "title": "Dadar Station West Exit Guidelines",
-        "text": "Dadar West Station area is heavily populated during peak hours (crowd score 0.85). However, the north stairway underpass has broken CCTV cameras and poor lighting. Recommended walk path: Use the main Dadar TT Circle footbridge."
+        "id": "doc-ngp-02",
+        "title": "Pardi & Zone V Crime Risk Overview",
+        "text": "Pardi police station area in East Nagpur has an elevated historical crime score based on city police reports. Walking through unlit industrial stretches in Zone V after 9 PM incurs a risk penalty. Recommended route: Use main Kamptee Road or Central Avenue with active street lighting."
     },
     {
-        "id": "doc-03",
-        "title": "Lower Parel Commercial Corridor",
-        "text": "Lower Parel financial district has high CCTV surveillance (density 0.88) and active security guards until midnight. Extremely safe walking path along Phoenix Mills lane."
+        "id": "doc-ngp-03",
+        "title": "Civil Lines & Ramdaspeth Safe Walk Corridor",
+        "text": "Civil Lines and Ramdaspeth corridors have bright LED street lighting (0.90) maintained by Nagpur Municipal Corporation. Rated highly safe (score 88/100) for night walking."
     },
     {
-        "id": "doc-04",
-        "title": "Bandra Kurla Complex (BKC) Night Walk",
-        "text": "BKC wide avenues have bright LED lighting (score 0.90) and frequent police patrols. High safety rating (88/100). Safe for night walking."
+        "id": "doc-ngp-04",
+        "title": "Dharampeth & Gokulpeth Commercial Area",
+        "text": "Dharampeth West High Court Road corridor is active with open shops and cafes until 10:30 PM. High crowd density and good lighting. Side lanes connecting towards Ram Nagar require caution late at night due to reduced foot traffic."
     },
     {
-        "id": "doc-05",
-        "title": "Mahim Junction Underpass Caution",
-        "text": "Mahim Creek connector has low crowd density after 10 PM and elevated historical harassment reports. Always prefer taking the main L.J. Road."
+        "id": "doc-ngp-05",
+        "title": "Hingna Road & Butibori Industrial Corridors",
+        "text": "Hingna Industrial Belt and MIDC corridor stretches experience severe streetlight outages between 10 PM and 5 AM. High isolation score. Shift workers walking on foot should always enable SafeWalk live GPS tracking."
     },
     {
-        "id": "doc-06",
-        "title": "General Safe Walk Guidelines for Smart Cities",
-        "text": "Always choose routes with composite safety scores above 75. Look for green polylines on the SafePath map. If walking after 10 PM, enable SafeWalk live GPS tracking and keep Emergency SOS ready."
+        "id": "doc-ngp-06",
+        "title": "General Safe Walk Guidelines for Nagpur Smart City",
+        "text": "Always select routes highlighted in green with a composite safety score above 75. For late-night travel across Nagpur, enable SafeWalk live GPS tracking and keep One-Tap Emergency SOS location sharing active."
     }
 ]
 
 def index_safety_knowledge_base():
-    """Index safety knowledge documents into ChromaDB vector database."""
+    """Index Nagpur safety knowledge documents into ChromaDB vector database."""
     existing_count = collection.count()
     if existing_count == 0:
         ids = [d["id"] for d in SAFETY_KNOWLEDGE_DOCS]
@@ -66,7 +66,7 @@ def index_safety_knowledge_base():
             documents=documents,
             metadatas=metadatas
         )
-        print(f"[RAG Copilot] Indexed {len(ids)} safety documents into ChromaDB collection.")
+        print(f"[RAG Copilot] Indexed {len(ids)} Nagpur safety documents into ChromaDB collection.")
 
 # Pre-index on module load
 index_safety_knowledge_base()
@@ -103,16 +103,16 @@ def answer_copilot_query(user_query: str, route_context: Optional[Dict[str, Any]
                 f"  - Detour: +{r.get('detour_percentage')}%\n"
                 f"  - Rationale: {r.get('rationale')}\n"
             )
-        route_context_str = "CURRENT CALCULATED ROUTE DATA:\n" + "\n".join(routes_summary) + "\n---\n"
+        route_context_str = "CURRENT CALCULATED NAGPUR ROUTE DATA:\n" + "\n".join(routes_summary) + "\n---\n"
 
-    prompt = f"""You are SafePath AI's Safety Copilot. Use ONLY the supplied application data below to answer the user's question accurately. Do NOT invent safety facts.
+    prompt = f"""You are SafePath AI's Safety Copilot for Nagpur, Maharashtra. Use ONLY the supplied application data below to answer the user's question accurately regarding route safety, lighting conditions, or detours across Nagpur. Do NOT invent safety facts.
 
-{route_context_str}Retrieved Safety Knowledge Base Context:
+{route_context_str}Retrieved Safety Knowledge Base Context (Nagpur Region):
 {retrieved_context_str}
 
 User Question: "{user_query}"
 
-Provide a concise, grounded answer explaining route safety scores, lighting conditions, or detour trade-offs:"""
+Provide a concise, grounded answer explaining route safety scores, lighting conditions, or detour trade-offs in Nagpur:"""
 
     if GEMINI_API_KEY:
         try:
@@ -127,7 +127,7 @@ Provide a concise, grounded answer explaining route safety scores, lighting cond
                 "user_query": user_query,
                 "answer": answer_text,
                 "retrieved_context": context_docs,
-                "engine": "Gemini LLM + ChromaDB Vector Store"
+                "engine": "Gemini 2.5 Flash LLM + ChromaDB Vector Store"
             }
         except Exception as e:
             print(f"[RAG Copilot] Gemini API call error: {e}. Falling back to grounded retrieval response.")
@@ -135,15 +135,15 @@ Provide a concise, grounded answer explaining route safety scores, lighting cond
     # Fallback grounded response using route metrics or vector context
     if route_context_str:
         fallback_answer = (
-            f"Based on current calculated route data for your journey:\n\n"
+            f"Based on current calculated route data for your Nagpur journey:\n\n"
             f"{route_context_str}\n"
-            f"Recommendation: Choose the Recommended Safe Route (Safety Score >= 75) which minimizes high-risk exposure within an acceptable detour."
+            f"Recommendation: Choose the Recommended Safe Route (Safety Score >= 75) which minimizes high-risk exposure across Nagpur within an acceptable detour."
         )
     else:
         fallback_answer = (
-            f"Based on SafePath AI's safety database for West India:\n\n"
+            f"Based on SafePath AI's safety database for Nagpur, Maharashtra:\n\n"
             f"{retrieved_context_str}\n\n"
-            f"Recommendation: Choose routes highlighted green (Safety Score >= 75) on the map and enable SafeWalk live tracking."
+            f"Recommendation: Choose routes highlighted green (Safety Score >= 75) on the Nagpur map and enable SafeWalk live tracking."
         )
 
     return {
@@ -155,7 +155,7 @@ Provide a concise, grounded answer explaining route safety scores, lighting cond
 
 
 if __name__ == "__main__":
-    test_q = "Why is Senapati Bapat Marg flagged high risk at 10 PM?"
+    test_q = "Why is Pardi or Zone V flagged with lower safety scores at night?"
     res = answer_copilot_query(test_q)
     print(f"\nQuery: {res['user_query']}")
     print(f"Answer:\n{res['answer']}")

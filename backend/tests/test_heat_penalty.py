@@ -29,7 +29,6 @@ def _straight_segment(seg_id, u, v, start, end, length=100.0):
         "geometry": [list(start), list(end)],
         "crime_score": 0.2,
         "lighting_score": 0.8,
-        "cctv_density": 0.7,
         "crowd_density": 0.7,
     }
 

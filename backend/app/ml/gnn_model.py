@@ -23,7 +23,7 @@ class SafetyGraphSAGE(nn.Module):
     2-Layer GraphSAGE Neural Network for Spatial Risk Propagation.
     Aggregates node & edge features from 2-hop connected street neighbors.
     """
-    def __init__(self, in_channels: int = 5, hidden_channels: int = 32, out_channels: int = 1):
+    def __init__(self, in_channels: int = 4, hidden_channels: int = 32, out_channels: int = 1):
         super().__init__()
         self.conv1 = SAGEConv(in_channels, hidden_channels, aggr="mean")
         self.conv2 = SAGEConv(hidden_channels, hidden_channels, aggr="mean")

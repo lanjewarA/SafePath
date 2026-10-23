@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
-import { AlertTriangle, Check, Copy, MapPin, Navigation, Share2, Square, Star, Search, ShieldCheck, ThumbsUp, ThumbsDown, MessageSquare, Sparkles, CheckCircle2 } from "lucide-react";
+import { AlertTriangle, Check, Copy, MapPin, Navigation, Share2, Square, Star, Search, ShieldCheck, CheckCircle2 } from "lucide-react";
 
 type Coordinates = { lat: number; lon: number };
 type RouteOption = {
@@ -16,26 +16,28 @@ type RouteOption = {
 
 const SafeWalkMap = dynamic(() => import("@/components/SafeWalkMap"), {
   ssr: false,
-  loading: () => <div className="min-h-[480px] animate-pulse bg-slate-900/60" />,
+  loading: () => <div className="min-h-[480px] animate-pulse bg-slate-900/60 rounded-xl" />,
 });
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 const DEVIATION_LIMIT_METERS = 100;
 
+// Nagpur Specific Preset Landmarks
 const KNOWN_DESTINATIONS: Record<string, { lat: number; lon: number; label: string }> = {
-  "bandra": { lat: 19.055, lon: 72.83, label: "Bandra West, Mumbai" },
-  "bandra west": { lat: 19.055, lon: 72.83, label: "Bandra West, Mumbai" },
-  "dadar": { lat: 19.0178, lon: 72.8478, label: "Dadar West, Mumbai" },
-  "dadar west": { lat: 19.0178, lon: 72.8478, label: "Dadar West, Mumbai" },
-  "kurla": { lat: 19.068, lon: 72.879, label: "Kurla West, Mumbai" },
-  "kurla west": { lat: 19.068, lon: 72.879, label: "Kurla West, Mumbai" },
-  "mumbai central": { lat: 18.97, lon: 72.819, label: "Mumbai Central, Mumbai" },
-  "bkc": { lat: 19.064, lon: 72.868, label: "Bandra Kurla Complex (BKC)" },
-  "lower parel": { lat: 18.995, lon: 72.83, label: "Lower Parel, Mumbai" },
-  "worli": { lat: 19.015, lon: 72.818, label: "Worli Naka, Mumbai" },
-  "andheri": { lat: 19.119, lon: 72.846, label: "Andheri West, Mumbai" },
-  "shivajinagar": { lat: 18.531, lon: 73.844, label: "Shivajinagar, Pune" },
-  "pune station": { lat: 18.528, lon: 73.874, label: "Pune Railway Station, Pune" },
+  "sitabuldi": { lat: 21.1462, lon: 79.0849, label: "Sitabuldi Market, Nagpur" },
+  "sitabuldi market": { lat: 21.1462, lon: 79.0849, label: "Sitabuldi Market, Nagpur" },
+  "dharampeth": { lat: 21.1432, lon: 79.0617, label: "Dharampeth, Nagpur" },
+  "civil lines": { lat: 21.1534, lon: 79.0722, label: "Civil Lines, Nagpur" },
+  "ramdaspeth": { lat: 21.1328, lon: 79.0776, label: "Ramdaspeth, Nagpur" },
+  "sadar": { lat: 21.1625, lon: 79.0815, label: "Sadar Bazar, Nagpur" },
+  "sadar bazar": { lat: 21.1625, lon: 79.0815, label: "Sadar Bazar, Nagpur" },
+  "nagpur station": { lat: 21.1524, lon: 79.0886, label: "Nagpur Railway Station" },
+  "nagpur railway station": { lat: 21.1524, lon: 79.0886, label: "Nagpur Railway Station" },
+  "pardi": { lat: 21.1580, lon: 79.1415, label: "Pardi, Nagpur" },
+  "hudkeshwar": { lat: 21.1021, lon: 79.1121, label: "Hudkeshwar, Nagpur" },
+  "mominpura": { lat: 21.1550, lon: 79.0920, label: "Mominpura, Nagpur" },
+  "it park": { lat: 21.1235, lon: 79.0512, label: "IT Park, Nagpur" },
+  "hingna": { lat: 21.1050, lon: 79.0040, label: "Hingna Industrial Area, Nagpur" }
 };
 
 function distanceFromRoute(position: Coordinates, route: number[][]): number {
@@ -82,7 +84,6 @@ export default function SafeWalkPage() {
   const [journeyCompleted, setJourneyCompleted] = useState(false);
   const [lightingRating, setLightingRating] = useState<number>(0);
   const [isDeserted, setIsDeserted] = useState<boolean | null>(null);
-  const [hasCctvPolice, setHasCctvPolice] = useState<boolean | null>(null);
   const [hasHarassment, setHasHarassment] = useState<boolean | null>(null);
   const [overallSafety, setOverallSafety] = useState<number>(0);
   const [feedbackDesc, setFeedbackDesc] = useState("");
@@ -121,16 +122,16 @@ export default function SafeWalkPage() {
       return;
     }
 
-    // 2. Fallback to OpenStreetMap Nominatim Geocoding API
+    // 2. Fallback to OpenStreetMap Nominatim Geocoding API (Nagpur Filtered)
     try {
-      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query + ", Maharashtra, India")}&limit=1`;
+      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query + ", Nagpur, Maharashtra, India")}&limit=1`;
       const res = await fetch(url, { headers: { "Accept-Language": "en" } });
       const data = await res.json();
       if (data && data.length > 0) {
         const item = data[0];
         const newCoords = { lat: parseFloat(item.lat), lon: parseFloat(item.lon) };
         setDestination(newCoords);
-        setDestAddressDisplay(item.display_name.split(",")[0] + ", " + (item.display_name.split(",")[1] || ""));
+        setDestAddressDisplay(item.display_name.split(",")[0] + ", Nagpur");
         setRoute(null);
         setStatus(`Destination set: ${item.display_name.split(",")[0]}`);
       } else {
@@ -138,10 +139,10 @@ export default function SafeWalkPage() {
       }
     } catch (err) {
       console.warn("Geocoding fetch failed:", err);
-      // Fallback default Bandra West
-      setDestination({ lat: 19.055, lon: 72.83 });
-      setDestAddressDisplay("Bandra West, Mumbai");
-      setStatus("Destination set: Bandra West, Mumbai");
+      // Fallback default Sitabuldi, Nagpur
+      setDestination({ lat: 21.1462, lon: 79.0849 });
+      setDestAddressDisplay("Sitabuldi Market, Nagpur");
+      setStatus("Destination set: Sitabuldi Market, Nagpur");
     } finally {
       setDestSearching(false);
     }
@@ -151,7 +152,7 @@ export default function SafeWalkPage() {
     if (!isTracking || !routeOrigin || !destination) return;
 
     const controller = new AbortController();
-    setStatus("Calculating your safest route...");
+    setStatus("Calculating your safest route in Nagpur...");
     fetch(`${API_BASE}/api/routes/calculate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -160,7 +161,7 @@ export default function SafeWalkPage() {
         origin_name: "",
         origin_lat: routeOrigin.lat,
         origin_lon: routeOrigin.lon,
-        destination_name: destAddressDisplay || "Destination",
+        destination_name: destAddressDisplay || "Nagpur Destination",
         dest_lat: destination.lat,
         dest_lon: destination.lon,
       }),
@@ -263,7 +264,6 @@ export default function SafeWalkPage() {
     setStatus("Session stopped");
   };
 
-  // Called when user arrives at destination (automatic or button click)
   const completeJourney = () => {
     if (watchId !== null) navigator.geolocation?.clearWatch(watchId);
     setWatchId(null);
@@ -280,7 +280,7 @@ export default function SafeWalkPage() {
     }
 
     const mapUrl = `https://maps.google.com/?q=${position.lat},${position.lon}`;
-    const message = `🚨 EMERGENCY SOS: I am walking in West India and need assistance. My live GPS location: ${mapUrl}`;
+    const message = `🚨 EMERGENCY SOS: I am walking in Nagpur and need assistance. My live GPS location: ${mapUrl}`;
     try {
       if (navigator.share) {
         await navigator.share({ title: "SafePath Emergency SOS", text: message, url: mapUrl });
@@ -297,22 +297,16 @@ export default function SafeWalkPage() {
     }
   };
 
-  // Submit compulsory feedback to backend
   const handleSubmitFeedback = async (e: React.FormEvent) => {
     e.preventDefault();
     setFeedbackError("");
 
-    // Validate compulsory fields
     if (lightingRating === 0) {
       setFeedbackError("Please rate the street lighting condition.");
       return;
     }
     if (isDeserted === null) {
       setFeedbackError("Please answer whether the streets felt deserted or crowded.");
-      return;
-    }
-    if (hasCctvPolice === null) {
-      setFeedbackError("Please answer whether CCTV or police security was visible.");
       return;
     }
     if (hasHarassment === null) {
@@ -327,18 +321,17 @@ export default function SafeWalkPage() {
     setFeedbackSubmitting(true);
 
     try {
-      // If user reported harassment or poor conditions, auto-submit a safety report to backend
       if (hasHarassment || lightingRating <= 2 || isDeserted) {
         const hazardType = hasHarassment ? "harassment_risk" : lightingRating <= 2 ? "poor_lighting" : "isolated_area";
         await fetch(`${API_BASE}/api/reports/submit`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            location_landmark: destAddressDisplay || "SafeWalk Destination",
+            location_landmark: destAddressDisplay || "Nagpur SafeWalk Destination",
             report_type: hazardType,
-            description: feedbackDesc || `Post-journey safety feedback: Lighting ${lightingRating}/5, Deserted: ${isDeserted ? 'Yes' : 'No'}, CCTV/Police: ${hasCctvPolice ? 'Yes' : 'No'}`,
+            description: feedbackDesc || `Nagpur post-walk safety feedback: Lighting ${lightingRating}/5, Deserted: ${isDeserted ? 'Yes' : 'No'}`,
             user_id: "safewalk_verified_user",
-            segment_id: "seg-mh-1001",
+            segment_id: "seg-ngp-1001",
           }),
         }).catch((e) => console.warn("Feedback report sync:", e));
       }
@@ -373,7 +366,7 @@ export default function SafeWalkPage() {
         <div className="flex-1 w-full">
           <label className="text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
             <MapPin className="w-3.5 h-3.5 text-pink-400" />
-            <span>Enter Destination Address or Landmark (West India / Mumbai / Pune):</span>
+            <span>Enter Destination Address or Landmark (Nagpur, Maharashtra):</span>
           </label>
           <div className="flex gap-2">
             <div className="relative flex-1">
@@ -382,7 +375,7 @@ export default function SafeWalkPage() {
                 value={destAddressText}
                 onChange={(e) => setDestAddressText(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") handleSearchDestination(); }}
-                placeholder="e.g. Bandra West, Dadar Station, Kurla, BKC, Pune Station..."
+                placeholder="e.g. Sitabuldi, Dharampeth, Civil Lines, Ramdaspeth, Sadar Bazar..."
                 className="w-full glass-inset rounded-lg py-2 pl-3 pr-8 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-pink-400 focus:ring-2 focus:ring-pink-400/20"
               />
             </div>
@@ -398,44 +391,44 @@ export default function SafeWalkPage() {
           </div>
         </div>
 
-        {/* Quick Destination Presets */}
+        {/* Quick Destination Presets (Nagpur Locations) */}
         <div className="flex flex-col gap-1 w-full md:w-auto">
           <span className="text-[10px] text-slate-400 font-semibold">Or Quick Choose Destination:</span>
           <div className="flex flex-wrap gap-1.5">
             <button
               type="button"
-              onClick={() => { setDestAddressText("Bandra West"); handleSearchDestination("Bandra West"); }}
+              onClick={() => { setDestAddressText("Sitabuldi"); handleSearchDestination("Sitabuldi"); }}
               className="text-[11px] glass-inset hover:bg-white/10 text-pink-200 px-2 py-1 rounded-md"
             >
-              Bandra West
+              Sitabuldi
             </button>
             <button
               type="button"
-              onClick={() => { setDestAddressText("Dadar West"); handleSearchDestination("Dadar West"); }}
+              onClick={() => { setDestAddressText("Dharampeth"); handleSearchDestination("Dharampeth"); }}
               className="text-[11px] glass-inset hover:bg-white/10 text-pink-200 px-2 py-1 rounded-md"
             >
-              Dadar West
+              Dharampeth
             </button>
             <button
               type="button"
-              onClick={() => { setDestAddressText("Kurla West"); handleSearchDestination("Kurla West"); }}
+              onClick={() => { setDestAddressText("Civil Lines"); handleSearchDestination("Civil Lines"); }}
               className="text-[11px] glass-inset hover:bg-white/10 text-pink-200 px-2 py-1 rounded-md"
             >
-              Kurla West
+              Civil Lines
             </button>
             <button
               type="button"
-              onClick={() => { setDestAddressText("BKC"); handleSearchDestination("BKC"); }}
+              onClick={() => { setDestAddressText("Ramdaspeth"); handleSearchDestination("Ramdaspeth"); }}
               className="text-[11px] glass-inset hover:bg-white/10 text-pink-200 px-2 py-1 rounded-md"
             >
-              BKC
+              Ramdaspeth
             </button>
             <button
               type="button"
-              onClick={() => { setDestAddressText("Pune Station"); handleSearchDestination("Pune Station"); }}
+              onClick={() => { setDestAddressText("Sadar Bazar"); handleSearchDestination("Sadar Bazar"); }}
               className="text-[11px] glass-inset hover:bg-white/10 text-pink-200 px-2 py-1 rounded-md"
             >
-              Pune Station
+              Sadar Bazar
             </button>
           </div>
         </div>
@@ -460,13 +453,11 @@ export default function SafeWalkPage() {
               setRoute(null);
               setError("");
 
-              // Initial placeholder while reverse-geocoding
               const initialLabel = `Map Pin (${nextDestination.lat.toFixed(4)}, ${nextDestination.lon.toFixed(4)})`;
               setDestAddressText(initialLabel);
               setDestAddressDisplay(initialLabel);
               setStatus(`Destination set from map: ${initialLabel}`);
 
-              // Reverse geocode to get street name / landmark
               try {
                 const res = await fetch(
                   `https://nominatim.openstreetmap.org/reverse?format=json&lat=${nextDestination.lat}&lon=${nextDestination.lon}&zoom=18&addressdetails=1`,
@@ -485,7 +476,6 @@ export default function SafeWalkPage() {
                 console.warn("Reverse geocode fetch error:", geoErr);
               }
 
-              // Fallback to closest regional landmark
               let closest = "";
               let minDistance = Infinity;
               for (const [, val] of Object.entries(KNOWN_DESTINATIONS)) {
@@ -564,7 +554,6 @@ export default function SafeWalkPage() {
                 </button>
               ) : (
                 <>
-                  {/* Arrival Trigger Button */}
                   <button
                     onClick={completeJourney}
                     className="flex min-h-11 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-400 px-4 py-2 text-sm font-bold text-slate-950 shadow-lg shadow-emerald-950/60 transition-all hover:scale-[1.02]"
@@ -665,38 +654,9 @@ export default function SafeWalkPage() {
                   </div>
                 </div>
 
-                {/* Factor 3: CCTV & Security Presence (Yes / No) */}
-                <div className="glass-inset p-3 rounded-xl flex flex-col gap-2">
-                  <span className="text-xs font-semibold text-slate-200">3. Did you notice visible CCTV cameras or police patrolling?</span>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <button
-                      type="button"
-                      onClick={() => setHasCctvPolice(true)}
-                      className={`py-2 px-3 rounded-lg border font-medium transition-all ${
-                        hasCctvPolice === true
-                          ? "bg-emerald-950/80 border-emerald-500 text-emerald-200 font-bold"
-                          : "border-white/10 hover:bg-white/5 text-slate-300"
-                      }`}
-                    >
-                      📹 Yes (CCTV / Security Visible)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setHasCctvPolice(false)}
-                      className={`py-2 px-3 rounded-lg border font-medium transition-all ${
-                        hasCctvPolice === false
-                          ? "bg-amber-950/80 border-amber-500 text-amber-200 font-bold"
-                          : "border-white/10 hover:bg-white/5 text-slate-300"
-                      }`}
-                    >
-                      ❌ No (No Security Visible)
-                    </button>
-                  </div>
-                </div>
-
                 {/* Factor 4: Harassment / Suspicious Activity (Yes / No) */}
                 <div className="glass-inset p-3 rounded-xl flex flex-col gap-2">
-                  <span className="text-xs font-semibold text-slate-200">4. Did you experience or observe any harassment, eve-teasing, or danger?</span>
+                  <span className="text-xs font-semibold text-slate-200">3. Did you experience or observe any harassment, eve-teasing, or danger?</span>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <button
                       type="button"
@@ -723,10 +683,10 @@ export default function SafeWalkPage() {
                   </div>
                 </div>
 
-                {/* Factor 5: Overall Feeling of Safety (Rating) */}
+                {/* Factor 4: Overall Feeling of Safety (Rating) */}
                 <div className="glass-inset p-3 rounded-xl flex flex-col gap-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-slate-200">5. Overall Safety Rating for this Route</span>
+                    <span className="text-xs font-semibold text-slate-200">4. Overall Safety Rating for this Route</span>
                     <span className="text-[11px] font-mono text-teal-400">{overallSafety > 0 ? `${overallSafety} / 5 Stars` : "Required"}</span>
                   </div>
                   <div className="flex items-center gap-3">
@@ -782,7 +742,7 @@ export default function SafeWalkPage() {
                 </div>
                 <h3 className="text-xl font-bold text-slate-100">Feedback Submitted Successfully!</h3>
                 <p className="text-xs text-slate-300 max-w-md leading-relaxed">
-                  Thank you for contributing to women's safety in our city! Your feedback has been recorded and will calibrate our GraphSAGE GNN spatial risk model and street lighting weight matrix.
+                  Thank you for contributing to women's safety in Nagpur! Your feedback has been recorded and will calibrate our GraphSAGE GNN spatial risk model and street lighting weight matrix.
                 </p>
                 <button
                   type="button"
@@ -805,4 +765,3 @@ export default function SafeWalkPage() {
     </div>
   );
 }
-

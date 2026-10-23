@@ -94,14 +94,26 @@ def get_supabase_client():
 #         return None
 
 def fetch_all_segments() -> List[Dict[str, Any]]:
-    """Fetch all street network segments from Supabase."""
+    """Fetch all street network segments, paging past the PostgREST row limit."""
     client = get_supabase_client()
     if client is None:
         return []
     
     try:
-        response = client.table("segments").select("*").execute()
-        return response.data if response.data else []
+        page_size = 1000
+        segments: List[Dict[str, Any]] = []
+        for offset in range(0, 100_000, page_size):
+            response = (
+                client.table("segments")
+                .select("*")
+                .range(offset, offset + page_size - 1)
+                .execute()
+            )
+            page = response.data or []
+            segments.extend(page)
+            if len(page) < page_size:
+                break
+        return segments
     except Exception as e:
         print(f"[Supabase] Failed to fetch segments: {e}")
         return []
@@ -202,5 +214,4 @@ def update_segment_safety_score(segment_id: str, new_safety_score: float) -> boo
     except Exception as e:
         print(f"[Supabase] Failed to update segment safety score: {e}")
         return False
-
 

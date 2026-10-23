@@ -69,7 +69,6 @@ def prepare_rows(segments: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
                 "length_meters": seg["length_meters"],
                 "crime_score": seg["crime_score"],
                 "lighting_score": seg["lighting_score"],
-                "cctv_density": seg["cctv_density"],
                 "crowd_density": seg["crowd_density"],
                 "safety_score": seg["safety_score"],
                 "geom": build_wkt_linestring(seg),

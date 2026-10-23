@@ -14,7 +14,7 @@ class ReportSubmitRequest(BaseModel):
     user_id: Optional[str] = Field(default="user_anon_101", description="User ID or anonymous reporter token")
     segment_id: Optional[str] = Field(default="seg-mh-1001", description="Street segment ID")
     location_landmark: str = Field(default="Dadar Station West Flyover, Mumbai", description="Location or landmark description")
-    report_type: str = Field(default="poor_lighting", description="Hazard category ('poor_lighting', 'harassment_risk', 'cctv_broken', 'isolated_area')")
+    report_type: str = Field(default="poor_lighting", description="Hazard category ('poor_lighting', 'harassment_risk', 'isolated_area')")
     description: str = Field(default="Streetlight out near the corner flyover, dark walkway with low crowd density.", description="Detailed text description of safety hazard")
     latitude: Optional[float] = Field(default=19.0178, description="Latitude coordinate")
     longitude: Optional[float] = Field(default=72.8478, description="Longitude coordinate")
@@ -125,4 +125,3 @@ def get_safety_heatpoints():
         "total_points": len(heat_points),
         "heat_points": heat_points
     }
-

@@ -34,7 +34,6 @@ CREATE TABLE IF NOT EXISTS public.segments (
     length_meters FLOAT NOT NULL DEFAULT 100.0,
     crime_score FLOAT NOT NULL DEFAULT 0.2 CHECK (crime_score BETWEEN 0 AND 1),
     lighting_score FLOAT NOT NULL DEFAULT 0.7 CHECK (lighting_score BETWEEN 0 AND 1),
-    cctv_density FLOAT NOT NULL DEFAULT 0.5 CHECK (cctv_density BETWEEN 0 AND 1),
     crowd_density FLOAT NOT NULL DEFAULT 0.6 CHECK (crowd_density BETWEEN 0 AND 1),
     safety_score FLOAT NOT NULL DEFAULT 75.0 CHECK (safety_score BETWEEN 0 AND 100),
     geom GEOMETRY(LineString, 4326),
@@ -49,7 +48,7 @@ CREATE TABLE IF NOT EXISTS public.safety_reports (
     latitude DOUBLE PRECISION NOT NULL,
     longitude DOUBLE PRECISION NOT NULL,
     report_type TEXT NOT NULL
-        CHECK (report_type IN ('poor_lighting','harassment_risk','cctv_broken','isolated_area')),
+        CHECK (report_type IN ('poor_lighting','harassment_risk','isolated_area')),
     description TEXT NOT NULL,
     credibility_score FLOAT DEFAULT 0.5 CHECK (credibility_score BETWEEN 0 AND 1),
     status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected')),
@@ -155,24 +154,24 @@ CREATE TRIGGER trg_increment_trust
 -- truncating segments alone would fail with a foreign-key error.
 TRUNCATE public.safety_reports, public.segments, public.trust_scores, public.routes;
 
-INSERT INTO public.segments (id, osm_id, name, start_lat, start_lon, end_lat, end_lon, length_meters, crime_score, lighting_score, cctv_density, crowd_density, safety_score) VALUES
-('seg-mh-1001', 400010001, 'Dadar West Railway Station to Senapati Bapat Marg Connector', 19.0178, 72.8478, 19.0020, 72.8280, 2718.4, 0.24, 0.81, 0.71, 0.72, 75.45),
-('seg-mh-1002', 400010002, 'Dadar West Railway Station to Lower Parel Commercial Hub Connector', 19.0178, 72.8478, 18.9950, 72.8295, 3236.0, 0.34, 0.76, 0.68, 0.75, 70.70),
-('seg-mh-1003', 400010003, 'Dadar West Railway Station to Worli Naka Connector',        19.0178, 72.8478, 19.0060, 72.8180, 3436.0, 0.22, 0.83, 0.74, 0.78, 78.45),
-('seg-mh-1004', 400010004, 'Dadar West Railway Station to Prabhadevi Chowk Connector',   19.0178, 72.8478, 19.0160, 72.8290, 1864.0, 0.41, 0.64, 0.55, 0.62, 60.05),
-('seg-mh-1005', 400010005, 'Dadar West Railway Station to Mahim Junction Connector',     19.0178, 72.8478, 19.0410, 72.8430, 2869.0, 0.18, 0.86, 0.80, 0.70, 80.20),
-('seg-mh-1006', 400010006, 'Dadar West Railway Station to Matunga Road Connector',       19.0178, 72.8478, 19.0270, 72.8450, 1050.0, 0.29, 0.79, 0.66, 0.74, 72.60),
-('seg-mh-1007', 400010007, 'Dadar West Railway Station to Sion Circle Connector',        19.0178, 72.8478, 19.0360, 72.8600, 2076.0, 0.36, 0.71, 0.63, 0.69, 66.55),
-('seg-mh-1008', 400010008, 'Dadar West Railway Station to Dharavi Junction Connector',   19.0178, 72.8478, 19.0400, 72.8530, 2557.0, 0.61, 0.44, 0.29, 0.35, 37.45),
-('seg-mh-1009', 400010009, 'Senapati Bapat Marg to Lower Parel Commercial Hub Connector',19.0020, 72.8280, 18.9950, 72.8295, 1748.0, 0.27, 0.77, 0.72, 0.80, 75.20),
-('seg-mh-1010', 400010010, 'Senapati Bapat Marg to Worli Naka Connector',                19.0020, 72.8280, 19.0060, 72.8180, 1120.0, 0.31, 0.75, 0.69, 0.77, 72.10);
+INSERT INTO public.segments (id, osm_id, name, start_lat, start_lon, end_lat, end_lon, length_meters, crime_score, lighting_score, crowd_density, safety_score) VALUES
+('seg-mh-1001', 400010001, 'Dadar West Railway Station to Senapati Bapat Marg Connector', 19.0178, 72.8478, 19.0020, 72.8280, 2718.4, 0.24, 0.81, 0.72, 76.56),
+('seg-mh-1002', 400010002, 'Dadar West Railway Station to Lower Parel Commercial Hub Connector', 19.0178, 72.8478, 18.9950, 72.8295, 3236.0, 0.34, 0.76, 0.75, 71.37),
+('seg-mh-1003', 400010003, 'Dadar West Railway Station to Worli Naka Connector',        19.0178, 72.8478, 19.0060, 72.8180, 3436.0, 0.22, 0.83, 0.78, 79.56),
+('seg-mh-1004', 400010004, 'Dadar West Railway Station to Prabhadevi Chowk Connector',   19.0178, 72.8478, 19.0160, 72.8290, 1864.0, 0.41, 0.64, 0.62, 61.31),
+('seg-mh-1005', 400010005, 'Dadar West Railway Station to Mahim Junction Connector',     19.0178, 72.8478, 19.0410, 72.8430, 2869.0, 0.18, 0.86, 0.70, 80.25),
+('seg-mh-1006', 400010006, 'Dadar West Railway Station to Matunga Road Connector',       19.0178, 72.8478, 19.0270, 72.8450, 1050.0, 0.29, 0.79, 0.74, 74.25),
+('seg-mh-1007', 400010007, 'Dadar West Railway Station to Sion Circle Connector',        19.0178, 72.8478, 19.0360, 72.8600, 2076.0, 0.36, 0.71, 0.69, 67.44),
+('seg-mh-1008', 400010008, 'Dadar West Railway Station to Dharavi Junction Connector',   19.0178, 72.8478, 19.0400, 72.8530, 2557.0, 0.61, 0.44, 0.35, 39.56),
+('seg-mh-1009', 400010009, 'Senapati Bapat Marg to Lower Parel Commercial Hub Connector',19.0020, 72.8280, 18.9950, 72.8295, 1748.0, 0.27, 0.77, 0.80, 76.00),
+('seg-mh-1010', 400010010, 'Senapati Bapat Marg to Worli Naka Connector',                19.0020, 72.8280, 19.0060, 72.8180, 1120.0, 0.31, 0.75, 0.77, 72.88);
 
 -- ------------------------------------------------------------
 -- 6. SEED — sample community reports + trust scores
 -- ------------------------------------------------------------
 INSERT INTO public.safety_reports (user_id, segment_id, latitude, longitude, report_type, description, credibility_score, status) VALUES
 ('demo_user_1', 'seg-mh-1008', 19.0290, 72.8501, 'poor_lighting', 'Streetlights not working near Dharavi junction for the past week, road is very dark at night.', 0.88, 'approved'),
-('demo_user_1', 'seg-mh-1005', 19.0300, 72.8455, 'cctv_broken',  'CCTV camera at the station exit is damaged; footage not being recorded.',               0.74, 'approved'),
+('demo_user_1', 'seg-mh-1005', 19.0300, 72.8455, 'isolated_area', 'Station exit walkway is deserted late at night.',                                         0.74, 'approved'),
 ('demo_user_2', 'seg-mh-1004', 19.0169, 72.8285, 'harassment_risk','Groups loitering near the flyover after 10pm, feels unsafe to walk alone.',            0.69, 'approved');
 
 INSERT INTO public.trust_scores (user_id, total_reports, verified_reports, trust_rating) VALUES

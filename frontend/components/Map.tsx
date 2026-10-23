@@ -15,11 +15,9 @@ export interface SegmentDetail {
   rf_risk: number;
   crime_score: number;
   lighting_score: number;
-  cctv_density: number;
   crowd_density: number;
   isolation_score: number;
   incident_count: number;
-  cctv_alert: boolean;
   start_lat: number;
   start_lon: number;
   end_lat: number;
@@ -81,7 +79,6 @@ export interface DBSegment {
   safety_score: number;
   crime_score: number;
   lighting_score: number;
-  cctv_density: number;
   crowd_density: number;
   geometry?: [number, number][];
   source: string;
@@ -248,8 +245,6 @@ export default function MapComponent({
         return "#a855f7"; // Purple
       case "poor_lighting":
         return "#f59e0b"; // Amber
-      case "cctv_broken":
-        return "#f43f5e"; // Rose
       default:
         return "#dc2626"; // Crimson
     }
@@ -540,4 +535,3 @@ export default function MapComponent({
     </div>
   );
 }
-
