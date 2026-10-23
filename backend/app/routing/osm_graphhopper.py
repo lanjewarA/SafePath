@@ -2,9 +2,10 @@ import os
 import json
 import math
 import networkx as nx
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Optional
 from app.db.supabase_client import fetch_all_segments
 from app.ml.baseline_rf import predict_safety_score
+from app.routing.routing_service import apply_spatial_heat_weights
 from app.schemas.route_schema import RouteOption, SegmentDetail, RouteResponse
 
 DATASET_FILE = os.path.join(os.path.dirname(__file__), "..", "..", "data", "mumbai_safety_network.json")
@@ -111,6 +112,8 @@ def calculate_segment_risk_features(seg: Dict[str, Any], time_of_day: str = "nig
 
     return {
         "final_risk": final_risk,
+        "baseline_risk": final_risk,
+        "heat_penalty": 0.0,
         "safety_score": safety_score,
         "gnn_risk": round(gnn_risk, 4),
         "rf_risk": round(rf_risk, 4),
@@ -133,16 +136,38 @@ def build_networkx_graph(segments: List[Dict[str, Any]], time_of_day: str = "nig
 
         metrics = calculate_segment_risk_features(seg, time_of_day)
         length = float(seg["length_meters"])
-        geom = seg.get("geometry", [[float(seg["start_lat"]), float(seg["start_lon"])], [float(seg["end_lat"]), float(seg["end_lon"])]])
+        start = [float(seg["start_lat"]), float(seg["start_lon"])]
+        end = [float(seg["end_lat"]), float(seg["end_lon"])]
+        raw_geometry = seg.get("geometry") or seg.get("geom")
+        if isinstance(raw_geometry, dict):
+            geom = [
+                [float(point[1]), float(point[0])]
+                for point in raw_geometry.get("coordinates", [])
+                if len(point) >= 2
+            ]
+        elif isinstance(raw_geometry, list):
+            geom = [[float(point[0]), float(point[1])] for point in raw_geometry if len(point) >= 2]
+        else:
+            geom = []
+        if len(geom) < 2:
+            geom = [start, end]
+        direct_distance = math.hypot(geom[0][0] - start[0], geom[0][1] - start[1]) + math.hypot(geom[-1][0] - end[0], geom[-1][1] - end[1])
+        reverse_distance = math.hypot(geom[0][0] - end[0], geom[0][1] - end[1]) + math.hypot(geom[-1][0] - start[0], geom[-1][1] - start[1])
+        if reverse_distance < direct_distance:
+            geom.reverse()
 
         G.add_edge(
             u, v,
+            u_node=u,
+            v_node=v,
             segment_id=seg.get("id", f"seg-{seg['osm_id']}"),
             name=seg.get("name", "Connector Street"),
             length=length,
             geometry=geom,
             safety_score=metrics["safety_score"],
             final_risk=metrics["final_risk"],
+            baseline_risk=metrics["baseline_risk"],
+            heat_penalty=metrics["heat_penalty"],
             gnn_risk=metrics["gnn_risk"],
             rf_risk=metrics["rf_risk"],
             crime_score=metrics["crime_score"],
@@ -152,27 +177,28 @@ def build_networkx_graph(segments: List[Dict[str, Any]], time_of_day: str = "nig
             isolation_score=metrics["isolation_score"],
             incident_count=metrics["incident_count"],
             cctv_alert=metrics["cctv_alert"],
-            start_lat=float(seg["start_lat"]),
-            start_lon=float(seg["start_lon"]),
-            end_lat=float(seg["end_lat"]),
-            end_lon=float(seg["end_lon"]),
+            start_lat=start[0],
+            start_lon=start[1],
+            end_lat=end[0],
+            end_lon=end[1],
         )
 
     return G
 
-def find_closest_node(graph: nx.Graph, nodes: List[Dict[str, Any]], query: str, lat: float = None, lon: float = None) -> Tuple[str, List[float]]:
+def find_closest_node(
+    graph: nx.Graph,
+    nodes: List[Dict[str, Any]],
+    query: str,
+    lat: float = None,
+    lon: float = None,
+    segments: List[Dict[str, Any]] = None,
+) -> Tuple[str, List[float]]:
     """Find closest graph node matching name query or lat/lon coordinates."""
     if not nodes:
-        node_name = list(graph.nodes())[0]
-        return node_name, [19.04, 72.845]
+        node_name = list(graph.nodes())[0] if len(graph.nodes()) > 0 else "center"
+        return node_name, [21.1458, 79.0882]
 
-    if query:
-        query_lower = query.lower()
-        for n in nodes:
-            if query_lower in n["name"].lower():
-                if n["name"] in graph:
-                    return n["name"], [n["lat"], n["lon"]]
-
+    # 1. Exact coordinate lookup
     if lat is not None and lon is not None:
         best_node = None
         best_coords = [lat, lon]
@@ -186,6 +212,29 @@ def find_closest_node(graph: nx.Graph, nodes: List[Dict[str, Any]], query: str, 
         if best_node:
             return best_node, best_coords
 
+    # 2. Text matching against node and segment names
+    if query:
+        query_lower = query.lower().strip()
+        tokens = [t for t in query_lower.replace(",", " ").replace(";", " ").split() if len(t) >= 3 and t not in {"road", "street", "near", "nagpur", "station"}]
+
+        # Direct node name match
+        for n in nodes:
+            if query_lower in n["name"].lower() and n["name"] in graph:
+                return n["name"], [n["lat"], n["lon"]]
+
+        # Match against segment names
+        if segments:
+            for s in segments:
+                s_name = s.get("name", "").lower()
+                matched = query_lower in s_name or any(tok in s_name for tok in tokens)
+                if matched:
+                    u = s.get("u_node")
+                    if u and u in graph:
+                        return u, [s["start_lat"], s["start_lon"]]
+                    v = s.get("v_node")
+                    if v and v in graph:
+                        return v, [s["end_lat"], s["end_lon"]]
+
     first_node = nodes[0]
     return first_node["name"], [first_node["lat"], first_node["lon"]]
 
@@ -193,17 +242,13 @@ import urllib.request
 
 def fetch_osrm_turn_by_turn(waypoints: List[Tuple[float, float]]) -> Tuple[List[List[float]], float]:
     """
-    Fetch 100% exact OpenStreetMap foot routing turn-by-turn walking geometry from OSRM.
-    Clips any extraneous U-turn tails or loops outside the Origin -> Destination bounding area.
+    Fetch exact OpenStreetMap foot routing turn-by-turn walking geometry from OSRM.
     """
     if not waypoints or len(waypoints) < 2:
         return [], 0.0
 
-    start_lat, start_lon = waypoints[0]
-    end_lat, end_lon = waypoints[-1]
-
-    wp_str = ";".join([f"{round(wp[1], 6)},{round(wp[0], 6)}" for wp in waypoints if wp[0] and wp[1]])
-    url = f"https://router.project-osrm.org/route/v1/foot/{wp_str}?overview=full&geometries=geojson"
+    wp_str = ";".join([f"{round(wp[1], 6)},{round(wp[0], 6)}" for wp in waypoints])
+    url = f"https://routing.openstreetmap.de/routed-foot/route/v1/driving/{wp_str}?overview=full&geometries=geojson"
     req = urllib.request.Request(url, headers={"User-Agent": "SafePathAI/1.0"})
     
     try:
@@ -212,28 +257,10 @@ def fetch_osrm_turn_by_turn(waypoints: List[Tuple[float, float]]) -> Tuple[List[
         if data.get("routes"):
             route = data["routes"][0]
             raw_coords = [[round(c[1], 6), round(c[0], 6)] for c in route["geometry"]["coordinates"]]
-
-            # Clip extraneous U-turn loops outside Origin-Destination bounds
-            lat_buffer = 0.002
-            lon_buffer = 0.006
-            min_lat = min(start_lat, end_lat) - lat_buffer
-            max_lat = max(start_lat, end_lat) + lat_buffer
-            min_lon = min(start_lon, end_lon) - lon_buffer
-            max_lon = max(start_lon, end_lon) + lon_buffer
-
-            clean_coords = [
-                pt for pt in raw_coords 
-                if min_lat <= pt[0] <= max_lat and min_lon <= pt[1] <= max_lon
-            ]
-
-            if clean_coords:
-                clean_coords.insert(0, [round(start_lat, 6), round(start_lon, 6)])
-                clean_coords.append([round(end_lat, 6), round(end_lon, 6)])
-                return clean_coords, route["distance"]
-
-            return raw_coords, route["distance"]
+            if len(raw_coords) >= 2:
+                return raw_coords, route.get("distance", 0.0)
     except Exception as e:
-        print(f"[OSRM Foot Routing] Warning: OSRM fetch failed ({e}), using fallback geometry.")
+        print(f"[OSRM Foot Routing] Pedestrian route request failed: {e}")
 
     return [], 0.0
 
@@ -255,22 +282,31 @@ def compute_route_metrics(
     max_risk = 0.0
     high_risk_distance = 0.0
 
-    path_waypoints: List[Tuple[float, float]] = []
-
     for i in range(len(path) - 1):
         u, v = path[i], path[i + 1]
         edge = graph[u][v]
 
         length = edge["length"]
         risk = edge["final_risk"]
-        geom = edge.get("geometry", [[edge["start_lat"], edge["start_lon"]], [edge["end_lat"], edge["end_lon"]]])
+        geom = list(edge.get("geometry", [[edge["start_lat"], edge["start_lon"]], [edge["end_lat"], edge["end_lon"]]]))
+        is_forward = u == edge["u_node"]
+        if not is_forward:
+            geom.reverse()
+        edge_start = (
+            [edge["start_lat"], edge["start_lon"]]
+            if is_forward
+            else [edge["end_lat"], edge["end_lon"]]
+        )
+        edge_end = (
+            [edge["end_lat"], edge["end_lon"]]
+            if is_forward
+            else [edge["start_lat"], edge["start_lon"]]
+        )
+        geom[0] = edge_start
+        geom[-1] = edge_end
 
         total_distance += length
         weighted_risk_sum += (risk * length)
-
-        if not path_waypoints:
-            path_waypoints.append((edge["start_lat"], edge["start_lon"]))
-        path_waypoints.append((edge["end_lat"], edge["end_lon"]))
 
         if risk > max_risk:
             max_risk = risk
@@ -278,22 +314,11 @@ def compute_route_metrics(
         if risk >= 0.60:
             high_risk_distance += length
 
-        # Append curved waypoints ensuring seamless node connection on land only
-        MIN_LAND_LON = 72.8315
-        for idx, pt in enumerate(geom):
+        for pt in geom:
             clamped_lat = round(pt[0], 6)
-            clamped_lon = round(max(MIN_LAND_LON, pt[1]), 6)
+            clamped_lon = round(pt[1], 6)
             if not coordinates or (abs(coordinates[-1][0] - clamped_lat) > 1e-6 or abs(coordinates[-1][1] - clamped_lon) > 1e-6):
                 coordinates.append([clamped_lat, clamped_lon])
-
-    # Fetch 100% exact OpenStreetMap foot routing turn-by-turn coordinates following real streets
-    osrm_coords, osrm_dist = fetch_osrm_turn_by_turn(path_waypoints)
-    if osrm_coords and len(osrm_coords) >= 10:
-        coordinates = osrm_coords
-        if osrm_dist > 0:
-            total_distance = osrm_dist
-
-
 
         segment_details.append(SegmentDetail(
             id=edge["segment_id"],
@@ -301,6 +326,7 @@ def compute_route_metrics(
             length_meters=length,
             safety_score=edge["safety_score"],
             final_risk=edge["final_risk"],
+            heat_penalty=float(edge.get("heat_penalty", 0.0)),
             gnn_risk=edge["gnn_risk"],
             rf_risk=edge["rf_risk"],
             crime_score=edge["crime_score"],
@@ -310,13 +336,12 @@ def compute_route_metrics(
             isolation_score=edge["isolation_score"],
             incident_count=edge["incident_count"],
             cctv_alert=edge["cctv_alert"],
-            start_lat=edge["start_lat"],
-            start_lon=edge["start_lon"],
-            end_lat=edge["end_lat"],
-            end_lon=edge["end_lon"],
+            start_lat=edge_start[0],
+            start_lon=edge_start[1],
+            end_lat=edge_end[0],
+            end_lon=edge_end[1],
             geometry=geom
         ))
-
 
     # Length-Weighted Risk Exposure
     safety_exposure = round(weighted_risk_sum / total_distance, 4) if total_distance > 0 else 0.25
@@ -370,14 +395,15 @@ def compute_route_metrics(
     )
 
 def calculate_safepath_routes(
-    origin_name: str = "Dadar West",
-    destination_name: str = "Bandra West",
+    origin_name: str = "Sitabuldi Main Road, Nagpur",
+    destination_name: str = "Dharampeth Extension Road, Nagpur",
     origin_lat: float = None,
     origin_lon: float = None,
     dest_lat: float = None,
     dest_lon: float = None,
     time_of_day: str = "night",
-    detour_factor: float = DEFAULT_MAX_ACCEPTABLE_DETOUR
+    detour_factor: float = DEFAULT_MAX_ACCEPTABLE_DETOUR,
+    heat_points: Optional[List[Dict[str, Any]]] = None,
 ) -> RouteResponse:
     """
     Calculate multi-candidate route options (Recommended Safe, Shortest, Balanced, Alternative Safe)
@@ -385,61 +411,71 @@ def calculate_safepath_routes(
     """
     nodes, segments = load_graph_data()
     G = build_networkx_graph(segments, time_of_day)
+    # Spatially join heat points onto edges BEFORE Dijkstra so safest/balanced
+    # paths pay an IDW penalty for walking within 150 m of a hazard cluster.
+    apply_spatial_heat_weights(G, heat_points=heat_points)
 
-    start_node, start_coords = find_closest_node(G, nodes, origin_name, origin_lat, origin_lon)
-    end_node, end_coords = find_closest_node(G, nodes, destination_name, dest_lat, dest_lon)
+    start_node, start_coords = find_closest_node(G, nodes, origin_name, origin_lat, origin_lon, segments=segments)
+    end_node, end_coords = find_closest_node(G, nodes, destination_name, dest_lat, dest_lon, segments=segments)
 
     if start_node == end_node:
         all_nodes = list(G.nodes())
         end_node = all_nodes[1] if len(all_nodes) > 1 else start_node
 
-    # 1. Shortest Route (distance weight)
-    for u, v, d in G.edges(data=True):
-        d["w_shortest"] = d["length"]
+    has_graph_path = nx.has_path(G, start_node, end_node)
 
-    try:
+    if has_graph_path:
         shortest_path = nx.dijkstra_path(G, start_node, end_node, weight="w_shortest")
-    except nx.NetworkXNoPath:
-        shortest_path = [start_node, end_node]
-
-    # Calculate shortest route distance for detour reference
-    shortest_dist_meters = sum(G[shortest_path[i]][shortest_path[i+1]]["length"] for i in range(len(shortest_path)-1))
-
-    # 2. Safest Route (Risk penalty lambda = 3.5)
-    for u, v, d in G.edges(data=True):
-        risk_penalty = 1.0 + 3.5 * (d["final_risk"] ** 1.5)
-        d["w_safest"] = d["length"] * risk_penalty
-
-    try:
+        shortest_dist_meters = sum(G[shortest_path[i]][shortest_path[i+1]]["length"] for i in range(len(shortest_path)-1))
         safest_path = nx.dijkstra_path(G, start_node, end_node, weight="w_safest")
-    except nx.NetworkXNoPath:
-        safest_path = shortest_path
-
-    # 3. Balanced Route (Risk penalty lambda = 1.2)
-    for u, v, d in G.edges(data=True):
-        risk_penalty = 1.0 + 1.2 * d["final_risk"]
-        d["w_balanced"] = d["length"] * risk_penalty
-
-    try:
         balanced_path = nx.dijkstra_path(G, start_node, end_node, weight="w_balanced")
-    except nx.NetworkXNoPath:
-        balanced_path = shortest_path
 
-    # Build RouteOption objects
-    r_shortest = compute_route_metrics(
-        G, shortest_path, "route-shortest", "Shortest Route",
-        "Direct path minimizing total walking distance", "#ef4444", shortest_dist_meters
-    )
-    r_safest = compute_route_metrics(
-        G, safest_path, "route-safest", "Recommended Safe Route",
-        "Bypasses poorly lit, high-incident, or unmonitored segments", "#10b981", shortest_dist_meters
-    )
-    r_balanced = compute_route_metrics(
-        G, balanced_path, "route-balanced", "Balanced Route",
-        "Optimal balance between walking distance and safety ratings", "#f59e0b", shortest_dist_meters
-    )
+        r_shortest = compute_route_metrics(
+            G, shortest_path, "route-shortest", "Shortest Route",
+            "Direct path minimizing total walking distance", "#ef4444", shortest_dist_meters
+        )
+        r_safest = compute_route_metrics(
+            G, safest_path, "route-safest", "Recommended Safe Route",
+            "Bypasses poorly lit, high-incident, or unmonitored segments", "#10b981", shortest_dist_meters
+        )
+        r_balanced = compute_route_metrics(
+            G, balanced_path, "route-balanced", "Balanced Route",
+            "Optimal balance between walking distance and safety ratings", "#f59e0b", shortest_dist_meters
+        )
+    else:
+        # Do not display a straight line as if it were a pedestrian route.
+        osrm_coords, osrm_dist = fetch_osrm_turn_by_turn([tuple(start_coords), tuple(end_coords)])
+        if not osrm_coords or len(osrm_coords) < 2:
+            raise RuntimeError("No connected street route was found, and pedestrian routing is unavailable.")
 
-    all_candidates = [r_safest, r_balanced, r_shortest]
+        shortest_dist_meters = osrm_dist
+        dist_km = round(osrm_dist / 1000.0, 2)
+        walk_mins = max(1, int(round((osrm_dist / 1.4) / 60.0)))
+
+        r_safest = RouteOption(
+            route_id="route-safest",
+            name="Pedestrian Route",
+            description="Walking directions are available, but local safety data is unavailable for this route.",
+            total_distance_meters=round(osrm_dist, 1),
+            total_distance_km=dist_km,
+            estimated_walk_minutes=walk_mins,
+            composite_safety_score=0.0,
+            safety_exposure=1.0,
+            max_segment_risk=1.0,
+            high_risk_exposure_pct=100.0,
+            detour_percentage=0.0,
+            route_cost=1.0,
+            is_recommended=False,
+            rationale="Safety could not be assessed because the local street network has no connected route.",
+            safety_category="Caution Required",
+            color="#f59e0b",
+            segments=[],
+            coordinates=osrm_coords
+        )
+        r_shortest = r_safest
+        r_balanced = r_safest
+
+    all_candidates = [r_safest, r_balanced, r_shortest] if has_graph_path else [r_safest]
 
     # Filter out duplicate coordinate paths
     unique_candidates: List[RouteOption] = []
@@ -451,6 +487,10 @@ def calculate_safepath_routes(
 
     if not unique_candidates:
         unique_candidates = [r_safest]
+
+    if unique_candidates[0].coordinates:
+        start_coords = unique_candidates[0].coordinates[0]
+        end_coords = unique_candidates[0].coordinates[-1]
 
     # Geographic Detour Constraint & Safety-First Override Logic
     acceptable_candidates = []
@@ -475,7 +515,12 @@ def calculate_safepath_routes(
 
     # Update recommendation flags and rationale
     for r in unique_candidates:
-        if r.route_id == recommended_id:
+        if not has_graph_path:
+            r.name = "Pedestrian Route"
+            r.color = "#f59e0b"
+            r.is_recommended = False
+            r.rationale = "Safety could not be assessed because the local street network has no connected route."
+        elif r.route_id == recommended_id:
             r.is_recommended = True
             r.name = "Recommended Safe Route"
             r.color = "#10b981"
@@ -497,10 +542,13 @@ def calculate_safepath_routes(
             r.color = "#f59e0b"
             r.rationale = f"Balanced trade-off between walking distance and safety exposure."
 
-    summary = (
-        f"Recommended '{recommended.name}' ({recommended.composite_safety_score}/100 safety score). "
-        f"{recommended.rationale}"
-    )
+    if has_graph_path:
+        summary = (
+            f"Recommended '{recommended.name}' ({recommended.composite_safety_score}/100 safety score). "
+            f"{recommended.rationale}"
+        )
+    else:
+        summary = "A pedestrian route is available, but the local safety network cannot assess its safety."
 
     return RouteResponse(
         origin=start_node,
@@ -512,5 +560,3 @@ def calculate_safepath_routes(
         recommendation_summary=summary,
         routes=unique_candidates
     )
-
-

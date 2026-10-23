@@ -1,6 +1,19 @@
 from pydantic import BaseModel, Field
 from typing import List, Optional
 
+
+class HeatPointInput(BaseModel):
+    id: Optional[str] = None
+    latitude: float = Field(ge=-90.0, le=90.0)
+    longitude: float = Field(ge=-180.0, le=180.0)
+    intensity: float = Field(default=0.75, ge=0.0, le=1.0)
+    report_type: Optional[str] = None
+    description: Optional[str] = None
+    location_landmark: Optional[str] = None
+    source: Optional[str] = None
+    status: Optional[str] = None
+
+
 class RouteRequest(BaseModel):
     origin_name: Optional[str] = Field(default="Dadar West", description="Landmark or origin address name")
     destination_name: Optional[str] = Field(default="Bandra West", description="Landmark or destination address name")
@@ -10,13 +23,18 @@ class RouteRequest(BaseModel):
     dest_lon: Optional[float] = Field(default=None, description="Destination longitude coordinate")
     time_of_day: Optional[str] = Field(default="night", description="Time of day: 'day', 'evening', or 'night'")
     detour_factor: Optional[float] = Field(default=1.30, description="Max acceptable detour multiplier (e.g., 1.30 = 30% detour)")
+    heat_points: Optional[List[HeatPointInput]] = Field(
+        default=None,
+        description="Optional active Nagpur heat points used to weight nearby road edges",
+    )
 
 class SegmentDetail(BaseModel):
     id: str
     name: str
     length_meters: float
     safety_score: float                       # 0 to 100 score
-    final_risk: float                         # 0.0 (safe) to 1.0 (high risk)
+    final_risk: float                         # 0.0 (safe) to 1.0 (high risk), includes heat IDW
+    heat_penalty: float = 0.0                 # Normalized IDW heat-point penalty (0 to 1)
     gnn_risk: float                           # GraphSAGE spatial risk prediction
     rf_risk: float                            # Random Forest baseline risk prediction
     crime_score: float
@@ -62,5 +80,4 @@ class RouteResponse(BaseModel):
     recommended_route_id: str
     recommendation_summary: str
     routes: List[RouteOption]
-
 

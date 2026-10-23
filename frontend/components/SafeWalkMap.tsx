@@ -12,7 +12,7 @@ type SafeWalkMapProps = {
   onDestinationSelect: (destination: Coordinates) => void;
 };
 
-const MUMBAI_CENTER: LatLngExpression = [19.076, 72.8777];
+const NAGPUR_CENTER: LatLngExpression = [21.1458, 79.0882];
 
 function MapInteraction({ position, routeCoordinates, onDestinationSelect }: Pick<SafeWalkMapProps, "position" | "routeCoordinates" | "onDestinationSelect">) {
   const map = useMap();
@@ -40,7 +40,7 @@ function MapInteraction({ position, routeCoordinates, onDestinationSelect }: Pic
 export default function SafeWalkMap({ position, destination, routeCoordinates, onDestinationSelect }: SafeWalkMapProps) {
   return (
     <div className="h-[480px] w-full bg-slate-900">
-      <MapContainer center={MUMBAI_CENTER} zoom={13} scrollWheelZoom className="h-full w-full">
+      <MapContainer center={NAGPUR_CENTER} zoom={13} scrollWheelZoom className="h-full w-full">
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

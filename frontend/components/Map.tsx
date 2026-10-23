@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle, CircleMarker, useMap } from "react-leaflet";
 import L from "leaflet";
 
@@ -10,6 +10,7 @@ export interface SegmentDetail {
   length_meters: number;
   safety_score: number;
   final_risk: number;
+  heat_penalty: number;
   gnn_risk: number;
   rf_risk: number;
   crime_score: number;
@@ -69,6 +70,23 @@ export interface HeatPoint {
   source: string;
 }
 
+export interface DBSegment {
+  id: string;
+  name: string;
+  start_lat: number;
+  start_lon: number;
+  end_lat: number;
+  end_lon: number;
+  length_meters: number;
+  safety_score: number;
+  crime_score: number;
+  lighting_score: number;
+  cctv_density: number;
+  crowd_density: number;
+  geometry?: [number, number][];
+  source: string;
+}
+
 interface MapProps {
   routes?: RouteOption[];
   selectedRouteId?: string | null;
@@ -79,6 +97,7 @@ interface MapProps {
   snappedDest?: [number, number];
   heatPoints?: HeatPoint[];
   showHeatmap?: boolean;
+  dbSegments?: DBSegment[];
 }
 
 // Fix Leaflet's default marker icon paths
@@ -95,19 +114,28 @@ L.Marker.prototype.options.icon = defaultIcon;
 
 const startMarkerIcon = L.divIcon({
   className: "custom-start-marker",
-  html: `<div style="background-color: #2dd4bf; width: 26px; height: 26px; border-radius: 50%; border: 3px solid #0c1a17; box-shadow: 0 0 14px rgba(45,212,191,0.8); display:flex; align-items:center; justify-content:center; color:#0c1a17; font-size:12px; font-weight:bold;">A</div>`,
-  iconSize: [26, 26],
-  iconAnchor: [13, 13],
+  html: `<div style="position:relative; width: 28px; height: 28px; display:flex; align-items:center; justify-content:center;">
+    <div style="position:absolute; width: 28px; height: 28px; border-radius: 50%; background: rgba(56, 189, 248, 0.4); box-shadow: 0 0 16px rgba(14, 165, 233, 0.9);"></div>
+    <div style="position:relative; width: 14px; height: 14px; border-radius: 50%; background: #0284c7; border: 2.5px solid #ffffff; box-shadow: 0 0 10px #38bdf8, 0 0 20px #0284c7;"></div>
+  </div>`,
+  iconSize: [28, 28],
+  iconAnchor: [14, 14],
 });
 
 const endMarkerIcon = L.divIcon({
   className: "custom-end-marker",
-  html: `<div style="background-color: #ec4899; width: 26px; height: 26px; border-radius: 50%; border: 3px solid #0c1a17; box-shadow: 0 0 14px rgba(236,72,153,0.8); display:flex; align-items:center; justify-content:center; color:#0c1a17; font-size:12px; font-weight:bold;">B</div>`,
-  iconSize: [26, 26],
-  iconAnchor: [13, 13],
+  html: `<div style="width: 30px; height: 38px; display:flex; align-items:center; justify-content:center; filter: drop-shadow(0 3px 6px rgba(0,0,0,0.5));">
+    <svg width="28" height="36" viewBox="0 0 24 30" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 0C5.37 0 0 5.37 0 12C0 19.8 11.1 29.3 11.55 29.7C11.68 29.8 11.84 29.87 12 29.87C12.16 29.87 12.32 29.8 12.45 29.7C12.9 29.3 24 19.8 24 12C24 5.37 18.63 0 12 0Z" fill="#ef4444"/>
+      <circle cx="12" cy="11.5" r="4.5" fill="#ffffff"/>
+      <circle cx="12" cy="11.5" r="2.5" fill="#991b1b"/>
+    </svg>
+  </div>`,
+  iconSize: [28, 36],
+  iconAnchor: [14, 35],
 });
 
-const MUMBAI_CENTER: [number, number] = [19.04, 72.845];
+const DEFAULT_CENTER: [number, number] = [21.1458, 79.0882];
 
 function MapController({ bounds }: { bounds: L.LatLngBoundsExpression | null }) {
   const map = useMap();
@@ -116,6 +144,19 @@ function MapController({ bounds }: { bounds: L.LatLngBoundsExpression | null }) 
       map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
     }
   }, [bounds, map]);
+  return null;
+}
+
+/** Auto-fit map to DB segment bounds when no route is active */
+function SegmentsBoundsFitter({ segmentsBounds, hasRoutes }: { segmentsBounds: L.LatLngBoundsExpression | null; hasRoutes: boolean }) {
+  const map = useMap();
+  const [fitted, setFitted] = useState(false);
+  useEffect(() => {
+    if (!fitted && !hasRoutes && segmentsBounds) {
+      map.fitBounds(segmentsBounds, { padding: [40, 40], maxZoom: 14 });
+      setFitted(true);
+    }
+  }, [fitted, hasRoutes, segmentsBounds, map]);
   return null;
 }
 
@@ -129,25 +170,74 @@ export default function MapComponent({
   snappedDest,
   heatPoints = [],
   showHeatmap = true,
+  dbSegments = [],
 }: MapProps) {
   const [heatmapActive, setHeatmapActive] = useState<boolean>(showHeatmap);
   const [mapLayer, setMapLayer] = useState<"streets" | "satellite">("streets");
   const selectedRoute = routes.find((r) => r.route_id === selectedRouteId) || routes[0];
   const activeCoordinates = selectedRoute?.coordinates || [];
 
+  // Compute dynamic map center from DB segments (supports Mumbai, Nagpur, or any city)
+  const dataCenter: [number, number] = useMemo(() => {
+    if (dbSegments.length === 0) return DEFAULT_CENTER;
+    let sumLat = 0;
+    let sumLon = 0;
+    let count = 0;
+    for (const seg of dbSegments) {
+      sumLat += seg.start_lat + seg.end_lat;
+      sumLon += seg.start_lon + seg.end_lon;
+      count += 2;
+    }
+    return [sumLat / count, sumLon / count];
+  }, [dbSegments]);
+
+  // Compute bounds that encompass ALL DB segments
+  const segmentsBounds: L.LatLngBoundsExpression | null = useMemo(() => {
+    if (dbSegments.length === 0) return null;
+    const lats = dbSegments.flatMap((s) => [s.start_lat, s.end_lat]);
+    const lons = dbSegments.flatMap((s) => [s.start_lon, s.end_lon]);
+    return [
+      [Math.min(...lats), Math.min(...lons)],
+      [Math.max(...lats), Math.max(...lons)],
+    ] as L.LatLngBoundsExpression;
+  }, [dbSegments]);
+
   let bounds: L.LatLngBoundsExpression | null = null;
+  // Set bounds from selected route coordinates first
   if (activeCoordinates.length > 0) {
-    bounds = activeCoordinates as [number, number][];
+    // Create bounds from the active route coordinates
+    const lats = activeCoordinates.map(([lat]) => lat);
+    const lons = activeCoordinates.map(([, lon]) => lon);
+    bounds = [
+      [Math.min(...lats), Math.min(...lons)],
+      [Math.max(...lats), Math.max(...lons)],
+    ] as L.LatLngBoundsExpression;
   } else if (routes.length > 0 && routes[0].coordinates.length > 0) {
-    bounds = routes[0].coordinates as [number, number][];
+    // Create bounds from first available route
+    const firstRoute = routes[0];
+    const lats = firstRoute.coordinates.map(([lat]) => lat);
+    const lons = firstRoute.coordinates.map(([, lon]) => lon);
+    bounds = [
+      [Math.min(...lats), Math.min(...lons)],
+      [Math.max(...lats), Math.max(...lons)],
+    ] as L.LatLngBoundsExpression;
   }
 
-  const startCoord = snappedOrigin || (activeCoordinates.length > 0 ? activeCoordinates[0] : null);
-  const endCoord = snappedDest || (activeCoordinates.length > 0 ? activeCoordinates[activeCoordinates.length - 1] : null);
+  const startCoord = snappedOrigin || activeCoordinates[0] || null;
+  const endCoord = snappedDest || (activeCoordinates.length > 0 ? activeCoordinates[activeCoordinates.length - 1] : null) || null;
 
   const openStreetView = (lat: number, lon: number) => {
     const url = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lon}`;
     window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  // Safety Score Scale legend (matches the sidebar):
+  // 80-100 Safe (teal), 60-79 Moderate (amber), 40-59 Caution (orange), 0-39 High Risk (rose)
+  const getSafetyColor = (score: number) => {
+    if (score >= 80) return "#10b981";
+    if (score >= 60) return "#f59e0b";
+    if (score >= 40) return "#f97316";
+    return "#ef4444";
   };
 
   const getReportColor = (type: string) => {
@@ -169,7 +259,7 @@ export default function MapComponent({
   return (
     <div className="w-full h-full min-h-[500px] rounded-xl overflow-hidden border border-white/10 shadow-xl relative z-10 flex flex-col bg-slate-900">
       <MapContainer
-        center={startCoord || MUMBAI_CENTER}
+        center={startCoord || dataCenter}
         zoom={12}
         scrollWheelZoom={true}
         className="w-full h-full min-h-[500px]"
@@ -187,12 +277,15 @@ export default function MapComponent({
         )}
 
         {bounds && <MapController bounds={bounds} />}
+        <SegmentsBoundsFitter segmentsBounds={segmentsBounds} hasRoutes={routes.length > 0 && routes[0].coordinates.length > 0} />
+
+
 
         {routes.length === 0 && (
-          <Marker position={MUMBAI_CENTER}>
+          <Marker position={dataCenter}>
             <Popup>
               <div className="text-slate-900 font-sans p-1">
-                <strong className="text-emerald-700 font-bold block text-sm">SafePath AI — West India</strong>
+                <strong className="text-emerald-700 font-bold block text-sm">SafePath AI</strong>
                 <span className="text-xs text-slate-600">Enter Origin & Destination and click "Calculate Safe Routes" to view green safest path overlay.</span>
               </div>
             </Popup>
@@ -274,68 +367,7 @@ export default function MapComponent({
               </Popup>
             </Polyline>
 
-            {/* Render Individual Segment Details with Inspection Markers/Popups */}
-            {selectedRoute.segments.map((seg, idx) => {
-              const segStart: [number, number] = [seg.start_lat, seg.start_lon];
-              const segEnd: [number, number] = [seg.end_lat, seg.end_lon];
-              const midLat = (seg.start_lat + seg.end_lat) / 2;
-              const midLon = (seg.start_lon + seg.end_lon) / 2;
-              const isHighRisk = seg.final_risk >= 0.60;
-              const isMediumRisk = seg.final_risk >= 0.40;
-              const strokeColor = isHighRisk ? "#ef4444" : isMediumRisk ? "#f59e0b" : "#10b981";
 
-              const segPositions = (seg.geometry && seg.geometry.length > 0) ? (seg.geometry as [number, number][]) : [segStart, segEnd];
-
-              return (
-                <Polyline
-                  key={`seg-${seg.id}-${idx}`}
-                  positions={segPositions}
-                  pathOptions={{
-                    color: strokeColor,
-                    weight: 7,
-                    opacity: 0.9,
-                  }}
-                >
-                  <Popup>
-                    <div className="text-slate-900 font-sans p-1 text-xs max-w-xs">
-                      <strong className="text-sm block font-bold" style={{ color: strokeColor }}>
-                        🛣️ {seg.name}
-                      </strong>
-                      <div className="text-slate-600 mb-1">
-                        Length: {seg.length_meters.toFixed(0)}m &bull; Segment Score: <strong>{seg.safety_score}/100</strong>
-                      </div>
-                      <div className="grid grid-cols-2 gap-1 bg-slate-100 p-1.5 rounded font-mono text-[10px] my-1 border border-slate-200">
-                        <div>🧠 GNN Risk: <strong>{seg.gnn_risk}</strong></div>
-                        <div>🌲 RF Baseline: <strong>{seg.rf_risk}</strong></div>
-                        <div>💡 Lighting: <strong>{(seg.lighting_score * 100).toFixed(0)}%</strong></div>
-                        <div>📹 CCTV Density: <strong>{(seg.cctv_density * 100).toFixed(0)}%</strong></div>
-                        <div>👥 Crowd Proxy: <strong>{(seg.crowd_density * 100).toFixed(0)}%</strong></div>
-                        <div>🏝️ Isolation: <strong>{(seg.isolation_score * 100).toFixed(0)}%</strong></div>
-                      </div>
-                      {seg.incident_count > 0 && (
-                        <div className="text-[10px] text-amber-700 font-semibold mt-1">
-                          ⚠️ {seg.incident_count} verified community hazard report(s)
-                        </div>
-                      )}
-                      {seg.cctv_alert && (
-                        <div className="text-[10px] text-rose-700 font-semibold mt-0.5">
-                          🚨 Active CCTV proximity alert
-                        </div>
-                      )}
-
-                      {/* Street View Quick Link for Segment */}
-                      <button
-                        type="button"
-                        onClick={() => openStreetView(midLat, midLon)}
-                        className="mt-2 w-full bg-slate-900 hover:bg-slate-800 text-teal-300 border border-teal-500/40 text-[11px] font-semibold py-1 px-2 rounded flex items-center justify-center gap-1.5 transition-colors shadow-sm"
-                      >
-                        <span>📷 Open 360° Street View</span>
-                      </button>
-                    </div>
-                  </Popup>
-                </Polyline>
-              );
-            })}
           </>
         )}
 
@@ -410,7 +442,7 @@ export default function MapComponent({
           <Marker position={startCoord} icon={startMarkerIcon}>
             <Popup>
               <div className="text-slate-900 font-sans text-xs">
-                <strong className="text-emerald-700 font-bold block">🟢 Snapped Origin (Start)</strong>
+                <strong className="text-sky-700 font-bold block">🔵 Origin (Start)</strong>
                 <span>{originName || "Origin Location"}</span>
                 <br />
                 <span className="font-mono text-[10px] text-slate-500">[{startCoord[0].toFixed(4)}, {startCoord[1].toFixed(4)}]</span>
@@ -431,7 +463,7 @@ export default function MapComponent({
           <Marker position={endCoord} icon={endMarkerIcon}>
             <Popup>
               <div className="text-slate-900 font-sans text-xs">
-                <strong className="text-rose-700 font-bold block">🏁 Snapped Destination (End)</strong>
+                <strong className="text-red-700 font-bold block">🔴 Destination (End)</strong>
                 <span>{destName || "Destination Location"}</span>
                 <br />
                 <span className="font-mono text-[10px] text-slate-500">[{endCoord[0].toFixed(4)}, {endCoord[1].toFixed(4)}]</span>
@@ -480,8 +512,8 @@ export default function MapComponent({
         <button
           type="button"
           onClick={() => {
-            const targetLat = startCoord ? startCoord[0] : MUMBAI_CENTER[0];
-            const targetLon = startCoord ? startCoord[1] : MUMBAI_CENTER[1];
+            const targetLat = startCoord ? startCoord[0] : dataCenter[0];
+            const targetLon = startCoord ? startCoord[1] : dataCenter[1];
             openStreetView(targetLat, targetLon);
           }}
           title="Open Google Street View (360° Panorama) for active location"
@@ -508,6 +540,4 @@ export default function MapComponent({
     </div>
   );
 }
-
-
 

@@ -8,7 +8,8 @@ router = APIRouter(prefix="/api/routes", tags=["Routing Engine"])
 def calculate_routes(payload: RouteRequest):
     """
     Calculate ranked route options (Recommended Safe, Balanced, Shortest) between origin and destination.
-    Incorporates GNN spatial risk propagation, RF baseline, length-weighted exposure, detour constraints, and safety override.
+    Incorporates GNN spatial risk, RF baseline, heat-point IDW penalties (150 m buffer),
+    length-weighted exposure, detour constraints, and safety override.
     """
     try:
         response = calculate_safepath_routes(
@@ -19,11 +20,15 @@ def calculate_routes(payload: RouteRequest):
             dest_lat=payload.dest_lat,
             dest_lon=payload.dest_lon,
             time_of_day=payload.time_of_day or "night",
-            detour_factor=payload.detour_factor or 1.30
+            detour_factor=payload.detour_factor or 1.30,
+            heat_points=(
+                [point.model_dump(exclude_none=True) for point in payload.heat_points]
+                if payload.heat_points is not None
+                else None
+            ),
         )
         return response
     except Exception as e:
         print(f"[API Routes Error] Failed to calculate route: {e}")
         raise HTTPException(status_code=500, detail=f"Route calculation failed: {str(e)}")
-
 

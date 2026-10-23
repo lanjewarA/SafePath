@@ -178,3 +178,9 @@ INSERT INTO public.safety_reports (user_id, segment_id, latitude, longitude, rep
 INSERT INTO public.trust_scores (user_id, total_reports, verified_reports, trust_rating) VALUES
 ('demo_user_1', 2, 2, 0.85),
 ('demo_user_2', 1, 1, 0.62);
+
+-- ------------------------------------------------------------
+-- 7. HEAT-POINT ROUTING (PostGIS IDW) — see also docs/heat_penalty.sql
+-- ------------------------------------------------------------
+-- After first-time setup, run docs/heat_penalty.sql to create
+-- public.segment_heat_penalties(buffer_meters) used by the routing engine.

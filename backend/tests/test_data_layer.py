@@ -1,7 +1,11 @@
 import os
 import json
 import pytest
+from fastapi.testclient import TestClient
+from app.main import app
 from app.db.supabase_client import get_supabase_client, fetch_all_segments
+
+client = TestClient(app)
 
 def test_dataset_json_integrity():
     dataset_path = os.path.join(os.path.dirname(__file__), "..", "data", "mumbai_safety_network.json")
@@ -35,4 +39,33 @@ def test_supabase_client_initialization():
     client = get_supabase_client()
     segments = fetch_all_segments()
     assert isinstance(segments, list)
+
+def test_segments_api_endpoint():
+    """GET /api/segments must serve the map overlay payload from Supabase
+    (or the local dataset fallback) with Leaflet-ready [lat, lon] geometry."""
+    response = client.get("/api/segments")
+    assert response.status_code == 200
+
+    data = response.json()
+    assert isinstance(data["supabase_active"], bool)
+    assert data["source"] in {"supabase", "local_dataset", "none"}
+    assert data["total_segments"] == len(data["segments"])
+    assert data["total_segments"] > 0, "No segment data: DB empty and local dataset missing!"
+
+    required_keys = {"id", "name", "start_lat", "start_lon", "end_lat", "end_lon",
+                     "length_meters", "safety_score", "crime_score", "lighting_score",
+                     "cctv_density", "crowd_density", "geometry", "source"}
+    for seg in data["segments"]:
+        assert required_keys.issubset(seg.keys()), f"Segment {seg.get('id')} missing keys"
+        assert 0.0 <= seg["safety_score"] <= 100.0
+        for metric in ("crime_score", "lighting_score", "cctv_density", "crowd_density"):
+            assert 0.0 <= seg[metric] <= 1.0, f"{metric} out of range in {seg['id']}"
+        # Geometry must be Leaflet [lat, lon] pairs inside the West India region
+        assert len(seg["geometry"]) >= 2
+        for lat, lon in seg["geometry"]:
+            assert 17.0 <= lat <= 25.0, f"lat {lat} not Leaflet-ordered in {seg['id']}"
+            assert 68.0 <= lon <= 85.0, f"lon {lon} not Leaflet-ordered in {seg['id']}"
+    # Supabase rows carry the provenance badge the map popup renders
+    if data["supabase_active"]:
+        assert all(s["source"] == "supabase" for s in data["segments"])
 

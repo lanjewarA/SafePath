@@ -1,11 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import routes, reports, chat
+from app.api import routes, reports, chat, segments
 
 app = FastAPI(
     title="SafePath AI API",
-    description="Backend API for SafePath AI — Urban Safety Routing & Copilot (West India / Mumbai Region)",
+    description="Backend API for SafePath AI — Urban Safety Routing & Copilot (Nagpur, Maharashtra)",
     version="0.1.0"
 )
 
@@ -13,6 +13,7 @@ app = FastAPI(
 app.include_router(routes.router)
 app.include_router(reports.router)
 app.include_router(chat.router)
+app.include_router(segments.router)
 
 
 
@@ -31,7 +32,7 @@ def read_root():
     return {
         "service": "SafePath AI Backend",
         "status": "online",
-        "region": "West India (Mumbai/Pune)"
+        "region": "Nagpur, Maharashtra"
     }
 
 @app.get("/api/health")

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { Search, ShieldCheck, Activity, MapPin, Loader2, AlertCircle, Lightbulb, Info, Sun, Moon, Sunrise } from "lucide-react";
-import type { RouteOption, RouteResponse, HeatPoint } from "@/components/Map";
+import type { RouteOption, RouteResponse, HeatPoint, DBSegment } from "@/components/Map";
 
 // Dynamically import Leaflet Map with ssr: false
 const DynamicMap = dynamic(() => import("@/components/Map"), {
@@ -12,7 +12,7 @@ const DynamicMap = dynamic(() => import("@/components/Map"), {
     <div className="w-full h-full min-h-[500px] bg-slate-900/60 animate-pulse flex items-center justify-center text-slate-400 rounded-xl border border-white/10">
       <div className="flex items-center gap-2">
         <Loader2 className="w-5 h-5 animate-spin text-teal-400" />
-        <span>Loading OpenStreetMap (West India)...</span>
+        <span>Loading OpenStreetMap...</span>
       </div>
     </div>
   ),
@@ -21,13 +21,14 @@ const DynamicMap = dynamic(() => import("@/components/Map"), {
 export default function HomePage() {
   const [healthStatus, setHealthStatus] = useState<string>("connecting...");
   const [dbStatus, setDbStatus] = useState<string>("");
-  const [startLoc, setStartLoc] = useState<string>("Dadar West");
-  const [destLoc, setDestLoc] = useState<string>("Bandra West");
+  const [startLoc, setStartLoc] = useState<string>("Sitabuldi, Nagpur");
+  const [destLoc, setDestLoc] = useState<string>("Dharampeth, Nagpur");
   const [timeOfDay, setTimeOfDay] = useState<string>("night");
   const [loading, setLoading] = useState<boolean>(false);
   const [routeData, setRouteData] = useState<RouteResponse | null>(null);
   const [selectedRouteId, setSelectedRouteId] = useState<string>("route-safest");
   const [heatPoints, setHeatPoints] = useState<HeatPoint[]>([]);
+  const [dbSegments, setDbSegments] = useState<DBSegment[]>([]);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const [originMode, setOriginMode] = useState<"manual" | "gps">("manual");
@@ -82,6 +83,18 @@ export default function HomePage() {
       .catch((err) => {
         console.error("Error fetching heat points:", err);
       });
+
+    // Fetch full street-segment network from Supabase for the DB overlay layer
+    fetch("http://localhost:8000/api/segments")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.segments) {
+          setDbSegments(data.segments);
+        }
+      })
+      .catch((err) => {
+        console.error("Error fetching DB segments:", err);
+      });
   }, []);
 
   const handleCalculateRoutes = async (e?: React.FormEvent) => {
@@ -94,6 +107,20 @@ export default function HomePage() {
         destination_name: destLoc,
         time_of_day: timeOfDay,
         detour_factor: 1.30,
+        ...(heatPoints.length > 0
+          ? {
+              heat_points: heatPoints.map((point) => ({
+                id: point.id,
+                latitude: point.latitude,
+                longitude: point.longitude,
+                intensity: point.intensity,
+                report_type: point.report_type,
+                description: point.description,
+                location_landmark: point.location_landmark,
+                source: point.source,
+              })),
+            }
+          : {}),
       };
 
       if (originMode === "gps" && gpsCoords) {
@@ -300,24 +327,24 @@ export default function HomePage() {
             <span className="text-[10px] text-slate-400 font-semibold w-full">Quick Preset Locations:</span>
             <button
               type="button"
-              onClick={() => { setStartLoc("Dadar West"); setDestLoc("Bandra West"); }}
+              onClick={() => { setStartLoc("Sitabuldi Main Road, Nagpur"); setDestLoc("Dharampeth Extension Road, Nagpur"); }}
               className="text-[11px] glass-inset hover:bg-white/10 text-slate-300 px-2 py-1 rounded-md"
             >
-              Dadar &rarr; Bandra
+              Sitabuldi &rarr; Dharampeth
             </button>
             <button
               type="button"
-              onClick={() => { setStartLoc("Mumbai Central"); setDestLoc("BKC"); }}
+              onClick={() => { setStartLoc("Nagpur Railway Station Approach, Nagpur"); setDestLoc("Residency Road, Civil Lines"); }}
               className="text-[11px] glass-inset hover:bg-white/10 text-slate-300 px-2 py-1 rounded-md"
             >
-              Mumbai Central &rarr; BKC
+              Nagpur Station &rarr; Civil Lines
             </button>
             <button
               type="button"
-              onClick={() => { setStartLoc("Lower Parel"); setDestLoc("Worli Naka"); }}
+              onClick={() => { setStartLoc("Ramdaspeth Road, Nagpur"); setDestLoc("Sadar Bazar Main Road, Nagpur"); }}
               className="text-[11px] glass-inset hover:bg-white/10 text-slate-300 px-2 py-1 rounded-md"
             >
-              Lower Parel &rarr; Worli
+              Ramdaspeth &rarr; Sadar Bazar
             </button>
           </div>
 
@@ -447,6 +474,9 @@ export default function HomePage() {
                   <div className="flex items-center gap-2 text-slate-400 font-mono text-[10px]">
                     <span title="Lighting Score" className="flex items-center gap-0.5"><Lightbulb className="w-3 h-3 text-amber-400" /> {(seg.lighting_score * 100).toFixed(0)}%</span>
                     <span title="GNN Risk Prediction" className="bg-slate-950/70 px-1 py-0.5 rounded text-pink-300">GNN: {seg.gnn_risk}</span>
+                    {seg.heat_penalty > 0 && (
+                      <span title="Heat-point IDW penalty" className="bg-red-950/80 px-1 py-0.5 rounded text-red-300">Heat: {(seg.heat_penalty * 100).toFixed(0)}%</span>
+                    )}
                     <span className={`font-mono font-bold text-xs px-1.5 py-0.5 rounded ${seg.safety_score >= 75 ? "bg-teal-950 text-teal-300 border border-teal-500/50" : "bg-amber-950 text-amber-300 border border-amber-500/50"}`}>
                       {seg.safety_score.toFixed(0)}
                     </span>
@@ -480,6 +510,7 @@ export default function HomePage() {
           snappedOrigin={routeData?.snapped_origin_coords as [number, number]}
           snappedDest={routeData?.snapped_dest_coords as [number, number]}
           heatPoints={heatPoints}
+          dbSegments={dbSegments}
         />
       </div>
     </div>
